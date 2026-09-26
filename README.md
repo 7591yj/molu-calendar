@@ -24,4 +24,4 @@ npm test
 
 ## 라이선스 관련
 
-NEXON / NEXON Games와 무관한 비공식 팬 프로젝트입니다. 공식 게임 에셋은 사용하지 않습니다. `GawrGura/` 모델 파일은 이용조건 확인 전까지 저장소에서 제외합니다.
+NEXON / NEXON Games와 무관한 비공식 팬 프로젝트입니다.
