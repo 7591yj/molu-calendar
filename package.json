@@ -1,0 +1,23 @@
+{
+  "name": "molu-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js",
+    "dev": "npm run build && node server.js",
+    "start": "npm run build && node server.js",
+    "pretest": "npm run build",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@moeru/three-mmd": "0.2.0-beta.2",
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

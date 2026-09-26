@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#dceffc">
+  <meta name="description" content="블루 아카이브 팬메이드 일정 캘린더. JSON으로 점검·픽업·이벤트를 한눈에 관리하세요.">
+  <title>MOLU — 샬레 일정 보드</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230bb9e0'/%3E%3Cpath d='M14 45V19l18 18 18-18v26' fill='none' stroke='white' stroke-width='6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2m-8 3h2"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.1M4 12h.1M4 18h.1"/></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="m7 6-5 6 5 6m10-12 5 6-5 6M14 3l-4 18"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 3h7v7m-1-6-9 9M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></symbol>
+    </defs>
+  </svg>
+  <a class="skip-link" href="#calendar">캘린더로 바로 가기</a>
+  <nav class="rail" aria-label="주 메뉴">
+    <a class="brand-symbol" href="./" aria-label="MOLU 홈"><svg viewBox="0 0 42 42" aria-hidden="true"><ellipse cx="21" cy="6.5" rx="7.5" ry="2.3" stroke="#fff" stroke-width="2" fill="none"/><circle cx="21" cy="22" r="11.5" fill="#fff"/><rect x="7.6" y="22" width="4" height="12.5" rx="2" fill="#fff"/><rect x="30.4" y="22" width="4" height="12.5" rx="2" fill="#fff"/><ellipse cx="21" cy="26.5" rx="9" ry="7.8" fill="#ffdcb8"/><path d="M13.4 24.5q7.6-6.6 15.2 0l-.4 1.9q-7.2-2.8-14.4 0z" fill="#fff"/><ellipse cx="17.2" cy="28.5" rx="1.9" ry="2.5" fill="#3d87c4"/><ellipse cx="24.8" cy="28.5" rx="1.9" ry="2.5" fill="#3d87c4"/><circle cx="17.7" cy="27.6" r=".6" fill="#fff"/><circle cx="25.3" cy="27.6" r=".6" fill="#fff"/><path d="M19.4 31.8q1.6 1.5 3.2 0" stroke="#c9805e" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></a>
+    <span class="rail-rule"></span>
+    <a class="rail-button active" href="#calendar" aria-label="캘린더"><svg><use href="#i-calendar"/></svg></a>
+    <button class="rail-button" data-import aria-label="JSON 가져오기"><svg><use href="#i-code"/></svg></button>
+    <div class="rail-bottom"><span class="rail-coordinate">35.70 / 139.77</span><span class="rail-node" title="브라우저 로컬 모드">M</span></div>
+  </nav>
+
+  <div class="workspace">
+
+    <main>
+      <div class="content-layout">
+        <section class="calendar-panel panel" id="calendar" aria-labelledby="month-heading">
+          <div class="calendar-toolbar"><div class="month-control"><h2 id="month-heading" aria-live="polite"></h2><div class="month-arrows"><button id="prev-month" class="icon-button" aria-label="이전 달"><svg class="flipped"><use href="#i-chevron"/></svg></button><button id="next-month" class="icon-button" aria-label="다음 달"><svg><use href="#i-chevron"/></svg></button></div><button id="today-button" class="button small quiet">오늘</button><div class="view-switch" aria-label="보기 방식"><button id="month-view" aria-label="달력 보기" aria-pressed="true"><svg><use href="#i-calendar"/></svg></button><button id="list-view" aria-label="목록 보기" aria-pressed="false"><svg><use href="#i-list"/></svg></button></div></div><div class="filter-row" id="filters" aria-label="일정 분류"></div></div>
+          <div id="calendar-view"><div class="weekdays" aria-hidden="true"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div><div class="calendar-grid" id="calendar-grid" role="group" aria-label="월별 일정"></div></div>
+          <div class="agenda" id="agenda" hidden></div>
+        </section>
+
+        <aside class="sidebar" aria-label="일정 브리핑">
+          <section class="panel briefing">
+            <div class="schale-clock" role="group" aria-label="현재 한국 시각" aria-live="off">
+              <div class="clock-terminal-label"><span class="clock-halo" aria-hidden="true"></span><span>샬레의 지금</span><span class="clock-live">LIVE</span></div>
+              <div class="clock-readout"><time id="kst-clock">00:00:00</time><span>KST</span></div>
+              <div class="clock-terminal-footer"><span id="kst-date"></span><span>LOCAL · UTC+09:00</span></div>
+            </div>
+            <div class="section-heading"><h2>선생님의 메모</h2><span class="mono">DAILY NOTE</span></div>
+            <div class="banner-wrap"><img class="memo-banner" id="memo-banner" alt="" hidden><button class="banner-next" id="banner-next" type="button" aria-label="다음 배너" hidden>›</button></div>
+            <div class="selected-date"><strong id="selected-date"></strong><span id="selected-weekday"></span><span class="date-decoration">+</span></div>
+            <p class="briefing-caption">선택한 날짜 기준 · 모든 시각 KST</p>
+            <div id="day-events" class="day-events"></div>
+          </section>
+        </aside>
+        <button class="home-indicator" id="home-indicator" type="button" aria-label="홈으로"><span></span></button>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <form id="import-form">
+      <div class="dialog-heading"><div><span class="eyebrow">CONNECT YOUR SCHEDULE</span><h2 id="import-title">일정 데이터 가져오기</h2></div><button type="button" class="icon-button" data-close aria-label="닫기"><svg><use href="#i-close"/></svg></button></div>
+      <div class="import-layout"><div class="editor-section"><div class="editor-toolbar"><label for="json-input">schedule.json</label><button type="button" class="text-button" id="fill-example">샘플 채우기</button></div><textarea id="json-input" aria-describedby="json-help import-error" spellcheck="false" placeholder="JSON을 여기에 붙여넣으세요."></textarea><label class="file-drop" id="file-drop"><input type="file" id="file-input" accept=".json,application/json"><svg><use href="#i-upload"/></svg><span>JSON 파일 선택 또는 끌어놓기</span><small>최대 1MB</small></label></div><div class="schema-guide"><span class="guide-label">FORMAT GUIDE / V1</span><h3>한 번 정한 형식으로,<br>계속 연결할 수 있게.</h3><p id="json-help">최상위는 <code>schema_version: 1</code>과 <code>events: []</code>입니다.</p><dl><dt>id · title · category</dt><dd>고유 ID · 일정 이름 · 분류</dd><dt>all_day · start · end</dt><dd>종일 여부 · 시작 · 종료(미포함)</dd><dt>status · source_url</dt><dd>진행 상태 · 원문 링크 (선택)</dd></dl><div class="guide-note">같은 ID는 갱신, 새 ID는 추가합니다. 파일에 없는 기존 일정은 유지됩니다. 첫 가져오기에서는 샘플을 교체합니다.</div><p class="guide-footnote">시각은 <code>+09:00</code> 등 시간대를 포함해 주세요. ‘점검 후’처럼 미정인 시각은 임의로 채우지 않습니다.</p><a href="schema.json" target="_blank" rel="noopener" class="schema-link">전체 JSON Schema 보기 ↗</a></div></div>
+      <p id="import-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-footer"><span>검증 후 이 브라우저에만 저장됩니다.</span><button type="button" class="button quiet" data-close>취소</button><button type="submit" class="button primary">캘린더에 반영<svg><use href="#i-arrow"/></svg></button></div>
+    </form>
+  </dialog>
+
+  <dialog id="event-dialog" aria-labelledby="event-title"><div class="dialog-heading"><span class="eyebrow">SCHEDULE INFORMATION</span><div class="dialog-actions"><button id="alarm-button" class="icon-button" type="button" aria-label="알람" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v3.6L4.2 15v1.4h15.6V15L18 12.6V9a6 6 0 0 0-6-6zM9.8 18a2.2 2.2 0 0 0 4.4 0z"/></svg></button><button id="bookmark-button" class="icon-button" type="button" aria-label="북마크" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v16l-7-4.2L5 21V5a1 1 0 0 1 1-1z"/></svg></button><button class="icon-button" data-close aria-label="닫기"><svg><use href="#i-close"/></svg></button></div></div><div class="event-detail"><div id="event-tags" class="event-tags"></div><h2 id="event-title"></h2><div class="detail-time-grid" role="group" aria-label="등록된 시작과 종료 시각"><div class="time-endpoint"><span>START / 시작</span><strong id="event-start-clock"></strong><small id="event-start-date"></small></div><span class="time-direction" aria-hidden="true">→</span><div class="time-endpoint"><span>END / 종료</span><strong id="event-end-clock"></strong><small id="event-end-date"></small></div></div><p id="event-range"></p><span class="detail-timezone">ASIA / SEOUL · KST</span><p id="event-description"></p><a id="event-source" class="button primary" target="_blank" rel="noopener noreferrer">공식 원문이 아닌 경우도 있으니 출처를 확인하세요<svg><use href="#i-link"/></svg></a><div class="event-id"><span>EVENT ID</span><code id="event-id"></code></div></div></dialog>
+  <div id="character-stage" class="character-stage" data-state="off" aria-hidden="true" hidden></div>
+  <aside id="character-controls" class="character-controls" aria-label="구라 테스트 캐릭터 제어" hidden><div><strong>GAWR GURA <span>PMX / LOCAL</span></strong><small id="character-motion-note">간이 걷기 · VMD 미사용</small></div><button id="character-motion" type="button" aria-pressed="true">걷기 멈춤</button><button id="character-hide" type="button" aria-label="구라 숨기기">×</button></aside>
+  <noscript><p class="noscript">캘린더와 JSON 가져오기를 사용하려면 JavaScript를 켜 주세요.</p></noscript>
+</body>
+</html>
