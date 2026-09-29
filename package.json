@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js",
-    "dev": "npm run build && node server.js",
+    "watch": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js --watch=forever",
+    "dev": "npm run watch & node server.js",
     "start": "npm run build && node server.js",
     "pretest": "npm run build",
     "test": "node --test"

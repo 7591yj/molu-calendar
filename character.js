@@ -5,6 +5,7 @@ import {
 import { MMDLoader } from '@moeru/three-mmd';
 
 let active = null;
+let loading = false;
 const MODEL_URL = '/models/gura/GawrGura.pmx';
 const MODEL_FILES = new Set(['GawrGura.pmx', 'body.png', 'ex.png', 'face.png', 'hair.png', 'nhair.png', 'weapon.png']);
 
@@ -34,6 +35,9 @@ export async function toggleCharacter() {
     active.dispose();
     return;
   }
+  // Guard against re-entry while the PMX is loading: a second click must not spawn a second renderer.
+  if (loading) return;
+  loading = true;
   const stage = document.querySelector('#character-stage');
   const controls = document.querySelector('#character-controls');
   const button = document.querySelector('#character-toggle');
@@ -206,6 +210,7 @@ export async function toggleCharacter() {
     button.textContent = '구라 숨기기';
     button.setAttribute('aria-pressed', 'true');
     status.textContent = 'Gawr Gura · PMX 테스트';
+    loading = false;
     active = { dispose };
     window.addEventListener('resize', resize, { signal: listeners.signal });
     document.addEventListener('visibilitychange', refresh, { signal: listeners.signal });
@@ -217,6 +222,7 @@ export async function toggleCharacter() {
     document.querySelectorAll('dialog').forEach(dialog => observer.observe(dialog, { attributes: true, attributeFilter: ['open'] }));
     resize();
   } catch (error) {
+    loading = false;
     dispose();
     throw error;
   }

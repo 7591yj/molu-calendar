@@ -1,13 +1,15 @@
 import { createServer } from 'node:http';
+import { existsSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-const files = {
+export const files = {
   '/': ['index.html', 'text/html'],
   '/index.html': ['index.html', 'text/html'],
   '/styles.css': ['styles.css', 'text/css'],
   '/app.js': ['app.js', 'text/javascript'],
   '/calendar.js': ['calendar.js', 'text/javascript'],
+  '/momotalk.js': ['momotalk.js', 'text/javascript'],
   '/schema.json': ['schema.json', 'application/json'],
   '/example.json': ['example.json', 'application/json'],
   '/character.bundle.js': ['character.bundle.js', 'text/javascript'],
@@ -18,6 +20,25 @@ for (const name of ['GawrGura.pmx', 'body.png', 'ex.png', 'face.png', 'hair.png'
 }
 for (const name of ['images.jpg', 'i1mages.jpg', '1231123.jpg']) {
   files[`/resource/event_banner_img/${name}`] = [`resource/event_banner_img/${name}`, 'image/jpeg'];
+}
+for (const name of ['gyeonggi-title-light-subset.woff2', 'gyeonggi-title-medium-subset.woff2', 'gyeonggi-title-bold-subset.woff2']) {
+  files[`/resource/fonts/${name}`] = [`resource/fonts/${name}`, 'font/woff2'];
+}
+const momoDir = 'resource/momotalk';
+if (existsSync(momoDir)) {
+  for (const name of readdirSync(momoDir).filter(name => name.endsWith('.webp'))) {
+    files[`/resource/momotalk/${name}`] = [`resource/momotalk/${name}`, 'image/webp'];
+  }
+}
+files['/resource/momotalk/students.json'] = ['resource/momotalk/students.json', 'application/json'];
+// MomoTalk app chrome (backdrop, notification sound), vendored by tools/vendor_momotalk.py.
+const momoUiDir = 'resource/momotalk/ui';
+const momoUiTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.wav': 'audio/wav', '.ogg': 'audio/ogg' };
+if (existsSync(momoUiDir)) {
+  for (const name of readdirSync(momoUiDir)) {
+    const type = momoUiTypes[name.slice(name.lastIndexOf('.'))];
+    if (type) files[`/resource/momotalk/ui/${name}`] = [`resource/momotalk/ui/${name}`, type];
+  }
 }
 
 export function makeServer() {

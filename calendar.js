@@ -174,6 +174,39 @@ export function featuredEvents(events, now = new Date()) {
   }).sort(compareEvents);
 }
 
+// 배너 후보: 진행·예정 이벤트가 없으면 끝난 일정으로라도 채운다 (빈 배너 방지).
+export function bannerEvents(events, now = new Date()) {
+  const current = featuredEvents(events, now);
+  return current.length ? current : events.filter(event => !['cancelled', 'postponed'].includes(event.status)).sort(compareEvents);
+}
+
+// 이벤트 id를 배너 이미지 슬롯에 고정 매핑한다: 같은 일정은 어디서든 같은 배너.
+export function bannerIndex(id, count) {
+  let hash = 5381;
+  for (let i = 0; i < id.length; i++) hash = (hash * 33 ^ id.charCodeAt(i)) >>> 0;
+  return hash % count;
+}
+
+// 이벤트 남은 시간 칩: '종료까지 Day -1' / '종료까지 14:30' / '시작까지 Day -2' / '종료'. 종료 미정이면 null.
+function countdown(ms) {
+  const days = Math.floor(ms / 86400000);
+  if (days >= 1) return `Day -${days}`;
+  const minutes = Math.floor(ms / 60000);
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+export function remainingLabel(event, now = new Date()) {
+  const timestamp = Number(now);
+  const startMoment = event.all_day ? Date.parse(`${event.start}T00:00:00+09:00`) : Date.parse(event.start);
+  const endMoment = event.all_day
+    ? Date.parse(`${span(event).last}T00:00:00+09:00`) + 86400000   // 종일은 마지막 날 24:00(KST)까지
+    : event.end ? Date.parse(event.end) : null;
+  if (endMoment !== null && timestamp >= endMoment) return '종료';
+  if (timestamp < startMoment) return `시작까지 ${countdown(startMoment - timestamp)}`;
+  if (endMoment === null) return null;
+  return `종료까지 ${countdown(endMoment - timestamp)}`;
+}
+
 export function mergeEvents(existing, incoming) {
   const merged = new Map(existing.map(event => [event.id, event]));
   incoming.forEach(event => merged.set(event.id, event));
@@ -184,6 +217,8 @@ export function mergeEvents(existing, incoming) {
 export function demoBundle(today = dateKey()) {
   const month = today.slice(0, 7);
   const day = number => `${month}-${String(number).padStart(2, '0')}`;
+  const next = shiftMonth(month, 1);
+  const nextDay = number => `${next}-${String(number).padStart(2, '0')}`;
   const sample = (id, title, category, start, end, all_day = false) => ({
     id: `demo-${id}`, title, category, all_day, start, end, status: 'confirmed',
     description: '화면 체험을 위한 가상 일정입니다. 실제 블루 아카이브 운영 일정이 아닙니다.',
@@ -197,5 +232,9 @@ export function demoBundle(today = dateKey()) {
     sample('mission', '샬레 특별 미션', 'event', day(22), day(28), true),
     sample('maintenance-next', '정기점검 예정', 'maintenance', `${day(22)}T11:00:00+09:00`, `${day(22)}T14:00:00+09:00`),
     sample('weekend', '계정 경험치 2배', 'campaign', day(26), day(28), true),
+    // 배너·카운트다운 칩 테스트용: 다음 달 일정과 어제~모레 롤링 일정 (항상 진행 중/임박 상태가 되게 한다)
+    sample('pickup-next', '다음 달 픽업 모집', 'pickup', `${nextDay(1)}T15:00:00+09:00`, `${nextDay(11)}T11:00:00+09:00`),
+    sample('event-next', '다음 달 신규 이벤트', 'event', nextDay(5), nextDay(15), true),
+    sample('rolling', '테스트 카운트다운', 'campaign', `${addDays(today, -1)}T18:00:00+09:00`, `${addDays(today, 2)}T18:00:00+09:00`),
   ] };
 }
