@@ -75,7 +75,7 @@ npm test
 - 설정 → 로컬 AI → 데이터 정리에서 JSON 내보내기·가져오기와 전체 삭제를 실행합니다. 가져오기는 형식·버전·크기·ID·순서·참조·중복을 검증하고, 사용자가 확인한 경우에만 현재 기록을 대체합니다. 방별 삭제는 대화 화면의 프로필에서 합니다. 삭제한 방은 즉시 빈 상태가 되고 다시 열지 않습니다.
 - 같은 방을 두 탭에서 동시에 생성하면 늦게 시작한 쪽이 감지해 거부합니다(잠금이 아니라 신호). 다른 탭의 추가·삭제는 목록과 열린 방에 반영됩니다.
 - 데이터 탭의 **저장 데이터 초기화**는 대화 DB 삭제가 성공한 뒤에만 새로고침합니다. AI 모델 캐시 삭제와는 별개 동작입니다.
-- 실제 브라우저 점검: `node tools/momo-memory-check.mjs` (`npm i --no-save --package-lock=false playwright` 필요). 이관·페이지·진행도·방 삭제·백업 왕복·기억 UI·두 탭 동시성과, 가짜 Worker로 페이지→Worker 입력 조립(기억 전달·왕복 문맥)까지 확인합니다. 실제 모델 추론은 하지 않습니다.
+- 실제 브라우저 점검: `node tools/momo-memory-check.mjs` (`npm i --no-save --package-lock=false playwright` 필요, `MOMO_CHECK_BROWSER=chromium|firefox|webkit`로 엔진 선택). 이관·페이지·진행도·방 삭제·백업 왕복·기억 UI·두 탭 동시성과, 가짜 Worker로 페이지→Worker 입력 조립(기억 전달·왕복 문맥)까지 확인합니다. 실제 모델 추론은 하지 않습니다.
 - 규모 점검: `node tools/momo-scale-check.mjs`. 합성 1만 메시지로 이관·방 열기·이전 페이지·방 전환·DOM 크기·모델 입력 크기를 재고, 메모리 창 상한(300행)과 입력 예산을 검사합니다.
 - 실제 모델 라이브 점검(옵트인, **2 GB 다운로드 + 실제 GPU 추론**): `node tools/local-ai-live-check.mjs`. Gemma 4 E2B LiteRT를 WebGPU 브라우저에서 내려받아 모모톡으로 기억 관련·무관 질문을 보내고 답을 저장합니다. 다운로드·쿼터·GPU 실패는 성공으로 바꾸지 않고 그대로 보고합니다.
 

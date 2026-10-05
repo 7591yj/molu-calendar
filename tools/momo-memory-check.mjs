@@ -3,7 +3,7 @@
 // Drives the real app UI for momo transcript migration, paging, script flow, deletion and backup.
 // The local AI model is not downloaded; AI generation paths are covered by unit tests instead.
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 import { once } from 'node:events';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -39,13 +39,20 @@ const legacy = JSON.stringify({
   Yuuka: [{ me: false, text: '유우카 레거시', time: '09:10' }, { me: true, text: '질문', time: '09:11' }],
   Airi: [{ me: false, text: '에어리 레거시', time: '08:00' }],
 });
+// 엔진 선택: MOMO_CHECK_BROWSER=chromium|firefox|webkit (기본 chromium).
+const ENGINES = { chromium, firefox, webkit };
+const engineName = (process.env.MOMO_CHECK_BROWSER ?? 'chromium').toLowerCase();
+const engine = ENGINES[engineName];
+if (!engine) throw new Error(`지원하지 않는 브라우저: ${engineName}`);
 const server = makeServer().listen(0, '127.0.0.1');
 await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 let browser;
 try {
-  browser = await chromium.launch();
+  browser = await engine.launch(process.env[`${engineName.toUpperCase()}_EXECUTABLE`] ? { executablePath: process.env[`${engineName.toUpperCase()}_EXECUTABLE`] } : {});
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
+  // WebKit/Firefox는 첫 렌더가 느릴 때가 있다: 기본 동작 제한을 넉넉히 둔다.
+  context.setDefaultTimeout(60_000);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -206,6 +213,7 @@ try {
   assert.equal(restored.find(row => row.name === '아로나').preview, aronaLast, '가져온 마지막 메시지');
   // AI 경로: 실제 Worker 대신 가짜 Worker로 페이지가 조립한 모델 입력을 확인한다(모델 다운로드 없음).
   const aiContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  aiContext.setDefaultTimeout(60_000);
   const aiPage = await aiContext.newPage();
   const aiErrors = [];
   aiPage.on('pageerror', error => aiErrors.push(error.message));
@@ -278,6 +286,7 @@ try {
 
   // 두 탭: 다른 탭의 추가·삭제 반영과 같은 방 동시 생성 감지(잠금이 아니라 신호).
   const multiContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  multiContext.setDefaultTimeout(60_000);
   const multiErrors = [];
   const prepareAiTab = async (page, delayMs) => {
     page.on('pageerror', error => multiErrors.push(error.message));
@@ -326,7 +335,7 @@ try {
   assert.deepEqual(multiErrors, [], '두 탭 페이지 오류 없음');
   await multiContext.close();
 
-  console.log('momo memory check: ok', JSON.stringify({ restored: restored.map(row => row.name), backupMessages: parsed.messages.length }));
+  console.log(`momo memory check (${engineName}): ok`, JSON.stringify({ restored: restored.map(row => row.name), backupMessages: parsed.messages.length }));
 } finally {
   await browser?.close();
   server.close();
