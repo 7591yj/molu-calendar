@@ -10,7 +10,8 @@
       "end": "2026-09-29T14:00:00+09:00",
       "status": "confirmed",
       "description": "JSON 형식 설명용 가상 일정입니다. 실제 운영 일정이 아닙니다.",
-      "source_url": "https://forum.nexon.com/bluearchive/"
+      "source_url": "https://forum.nexon.com/bluearchive/",
+      "images": { "kr": "images.jpg", "jp": "i1mages.jpg" }
     },
     {
       "id": "sample-event-20261001",

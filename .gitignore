@@ -1,6 +1,11 @@
 node_modules/
 character.bundle.js
 character.bundle.js.LEGAL.txt
+local-ai-worker.bundle.js
+local-ai-worker.bundle.js.LEGAL.txt
 # User-supplied model assets: keep local until redistribution rights are confirmed.
 GawrGura/
 GawrGura.zip
+
+# 파이썬 벤더 스크립트가 만드는 캐시
+tools/__pycache__/

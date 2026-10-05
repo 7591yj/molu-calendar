@@ -1,6 +1,75 @@
 // MomoTalk conversations are choice-driven in-game: a student speaks and Sensei picks a reply.
 // '@today' / '@tomorrow' answers resolve against this calendar's real schedule (see app.js).
+import { personaById } from './persona.js';
+
 export const MOMO_QUERIES = ['@today', '@tomorrow'];
+export const momoSupportsAI = id => !!personaById(id);
+
+// 모델 입력 조립: 카드·예시(고정) + 참고 자료(기억·발췌) + 완료된 최근 왕복 + 새 질문.
+// 예산은 문자 기준이다. 앱 형태 프롬프트 실측(Qwen3 토크나이저)에서 1.18~1.31자/토큰이었고,
+// 가장 나쁜 1.18자/토큰과 메시지 템플릿 오버헤드를 가정하면 4,000자는 약 3,550토큰이다.
+// 4096 문맥 − 출력 256 − 여유 ≈ 3,840토큰 안에 들어가는 보수적 운용값이며, 토큰 수를 직접 세지 않는다.
+export const PROMPT_CHAR_BUDGET = 4_000;
+export const MOMO_HISTORY_TURNS = 2;
+export const MOMO_MESSAGE_MAX = 2_000;
+
+const sumChars = list => list.reduce((sum, item) => sum + item.text.length, 0);
+// 완결된 항목 단위로만 담는다: 기억이나 왕복을 중간에서 자르지 않는다.
+function takeWhole(items, budget) {
+  const kept = [];
+  let used = 0;
+  for (const item of items) {
+    if (used + item.text.length > budget) continue;
+    kept.push(item);
+    used += item.text.length;
+  }
+  return kept;
+}
+// 완료된 user→assistant 쌍만, 길이 초과·pending 메시지는 제외한다.
+export function completedExchanges(history) {
+  const pairs = [];
+  let user = null;
+  for (const message of history ?? []) {
+    if (!message || typeof message.text !== 'string') { user = null; continue; }
+    if (message.me === true) user = !message.pending && message.text.length <= MOMO_MESSAGE_MAX ? message : null;
+    else {
+      if (message.me === false && user && message.text.length <= MOMO_MESSAGE_MAX) pairs.push({ question: user.text, answer: message.text });
+      user = null;
+    }
+  }
+  return pairs;
+}
+
+export function momoPromptPlan({ history, text, fixedChars, memories = [], excerpts = [], budget = PROMPT_CHAR_BUDGET } = {}) {
+  if (typeof text !== 'string' || !text.trim() || text.length > MOMO_MESSAGE_MAX) throw new Error('메시지는 1~2,000자로 입력해 주세요.');
+  if (!Number.isSafeInteger(fixedChars) || fixedChars < 0) throw new TypeError('고정 프롬프트 길이가 올바르지 않습니다.');
+  if (!Number.isSafeInteger(budget) || budget <= 0) throw new TypeError('문자 예산이 올바르지 않습니다.');
+  if (!Array.isArray(memories) || !Array.isArray(excerpts)) throw new TypeError('참고 자료는 배열이어야 합니다.');
+  const pairs = completedExchanges(history).slice(-MOMO_HISTORY_TURNS);
+  const available = budget - fixedChars - text.length;
+  // 참고 자료는 남은 예산의 절반까지만 쓴다. 최근 대화와 참고 자료가 서로를 밀어내지 않게 한다.
+  const referenceBudget = available > 0 ? Math.floor(available / 2) : 0;
+  const selectedMemories = takeWhole(memories, referenceBudget);
+  const selectedExcerpts = takeWhole(excerpts, referenceBudget - sumChars(selectedMemories));
+  const historyBudget = Math.max(0, available - sumChars(selectedMemories) - sumChars(selectedExcerpts));
+  const kept = [];
+  let historyChars = 0;
+  for (let index = pairs.length - 1; index >= 0; index--) {
+    const size = pairs[index].question.length + pairs[index].answer.length;
+    if (historyChars + size > historyBudget) break;
+    kept.unshift(pairs[index]);
+    historyChars += size;
+  }
+  const messages = kept.flatMap(pair => [{ role: 'user', content: pair.question }, { role: 'assistant', content: pair.answer }]);
+  messages.push({ role: 'user', content: text });
+  return {
+    messages, memories: selectedMemories, excerpts: selectedExcerpts,
+    fixedChars, historyChars, referenceChars: sumChars(selectedMemories) + sumChars(selectedExcerpts),
+    promptChars: fixedChars + historyChars + sumChars(selectedMemories) + sumChars(selectedExcerpts) + text.length,
+    droppedTurns: pairs.length - kept.length,
+    fits: available > 0,
+  };
+}
 
 export const MOMO_TOPICS = {
   Arona: [
@@ -215,28 +284,36 @@ export const MOMO_KB = [
   },
 ];
 
+// Local AI only intercepts explicit calendar phrases; fuzzy matches must not swallow character chat.
+export function momoCalendarQuery(text) {
+  if (!/오늘|내일/.test(text)) return null;
+  const normalize = value => value.toLowerCase().replace(/[\s?!.,！？。]/g, '');
+  return MOMO_KB.find(entry => MOMO_QUERIES.includes(entry.reply) && entry.q.some(phrase => normalize(phrase) === normalize(text)))?.reply ?? null;
+}
+
 const PARTICLES = ['한테', '에서', '으로', '라고', '라는', '부터', '까지', '처럼', '보다', '마다', '조차', '은', '는', '이', '가', '을', '를', '에', '로', '와', '과', '도', '만', '의', '야', '여'];
 const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('ko', { granularity: 'word' }) : null;
 const MOMO_MATCH_THRESHOLD = .4;   // 실측: 진짜 매칭 ≥.5, 무의미 입력 0 (calendar.test.js 참조)
 
-function stripParticle(token) {
+// Korean keyword tokenizer shared with chat-memory.js: segment, strip particles, then score by dice.
+export function stripParticle(token) {
   for (const particle of PARTICLES) {
     if (token.length > particle.length && token.endsWith(particle)) return token.slice(0, -particle.length);
   }
   return token;
 }
-function words(text) {
+export function words(text) {
   const base = segmenter ? [...segmenter.segment(text)].filter(s => s.isWordLike).map(s => s.segment.toLowerCase()) : [];
   return base.map(stripParticle).filter(Boolean);
 }
-function grams(text) {
+export function grams(text) {
   const bare = text.toLowerCase().replace(/\s+/g, '');
   const out = new Set();
   if (bare.length < 2) { if (bare) out.add(bare); return out; }
   for (let i = 0; i < bare.length - 1; i++) out.add(bare.slice(i, i + 2));
   return out;
 }
-function dice(a, b) {
+export function dice(a, b) {
   let hit = 0;
   for (const token of a) if (b.has(token)) hit++;
   return 2 * hit / (a.size + b.size || 1);

@@ -1,8 +1,10 @@
 """One-off vendoring of Blue Archive student profile data.
 
-Sources (both real, third-party fan/datamine projects):
-  - blue-utils.me  : KR-localized profile (school/year/club, MomoTalk status message, hobby, intro, CV)
-  - SchaleDB       : 120x120 student icons (images/student/icon/<characterId>.webp)
+Sources (all real, third-party fan/datamine projects):
+  - blue-utils.me    : KR-localized profile (school/year/club, MomoTalk status message, hobby, intro, CV)
+  - SchaleDB         : 120x120 student icons (images/student/icon/<characterId>.webp)
+  - closure-talk     : same-style icons for students SchaleDB skips
+  - bluearchive.wiki : Portrait_<Name>.png, last resort for KR/JP-only students neither has
 
 Run:  python3 tools/vendor_students.py     (writes resource/momotalk/students.json + avatars)
 Not part of the app runtime; re-run only to refresh the roster.
@@ -23,6 +25,7 @@ CACHE = '/tmp/bu-cache'
 LIST_URL = 'https://blue-utils.me/student/list?lang=Kr&server=kr'
 DETAIL_URL = 'https://blue-utils.me/student-detail/{slug}?lang=Kr&server=kr'
 SCHALE_ICON = 'https://raw.githubusercontent.com/SchaleDB/SchaleDB/main/images/student/icon/{cid}.webp'
+WIKI_API = 'https://bluearchive.wiki/w/api.php'
 ICON_DIR = os.path.join(CACHE, 'icons')
 UA = 'molu-calendar-vendoring (one-off fan project data build)'
 # ponytail: 1 request at a time with a pause keeps the source site happy; 144 pages ≈ 2 min.
@@ -121,8 +124,28 @@ def closure_talk_icons():
     return index
 
 
+def wiki_portrait(entry):
+    """bluearchive.wiki Portrait_<Name>.png; the only source left for KR/JP-only students."""
+    title = f"File:Portrait_{entry['slug'].capitalize()}.png"
+    result = subprocess.run(
+        ['curl', '-sL', '--max-time', '30', '-A', UA,
+         f'{WIKI_API}?action=query&titles={title}&prop=imageinfo&iiprop=url&format=json'],
+        capture_output=True, text=True, check=False)
+    try:
+        pages = json.loads(result.stdout)['query']['pages']
+    except (ValueError, KeyError):
+        return ''
+    info = next(iter(pages.values())).get('imageinfo')
+    if not info:
+        return ''
+    name = f"{entry['id']}.png"
+    if fetch(info[0]['url'], os.path.join(OUT_DIR, name)):
+        return name
+    return ''
+
+
 def avatar(entry, icon_dir, ct_index):
-    """SchaleDB icon -> closure-talk avatar -> none (UI falls back to an initial)."""
+    """SchaleDB icon -> closure-talk avatar -> wiki portrait -> none (UI falls back to an initial)."""
     name = entry['id']
     icon = os.path.join(icon_dir, f"{entry['characterId']}.webp")
     if os.path.exists(icon) and os.path.getsize(icon) > 200:
@@ -135,7 +158,7 @@ def avatar(entry, icon_dir, ct_index):
         if fetch(url, target) and os.path.getsize(target) > 500:
             shutil.copyfile(target, os.path.join(OUT_DIR, f'{name}.webp'))
             return f'{name}.webp'
-    return ''
+    return wiki_portrait(entry)
 
 
 def main():

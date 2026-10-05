@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js",
-    "watch": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js --watch=forever",
+    "build": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js && esbuild local-ai-worker.js --bundle --format=iife --target=es2022 --minify --legal-comments=linked --outfile=local-ai-worker.bundle.js",
+    "watch": "esbuild character.js --bundle --format=esm --target=es2022 --minify --legal-comments=linked --outfile=character.bundle.js --watch=forever & esbuild local-ai-worker.js --bundle --format=iife --target=es2022 --minify --legal-comments=linked --outfile=local-ai-worker.bundle.js --watch=forever",
     "dev": "npm run watch & node server.js",
     "start": "npm run build && node server.js",
     "pretest": "npm run build",
@@ -15,10 +15,13 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@litert-lm/core": "0.17.1",
+    "@mlc-ai/web-llm": "0.2.85",
     "@moeru/three-mmd": "0.2.0-beta.2",
     "three": "0.184.0"
   },
   "devDependencies": {
-    "esbuild": "0.25.12"
+    "esbuild": "0.25.12",
+    "fake-indexeddb": "6.2.4"
   }
 }

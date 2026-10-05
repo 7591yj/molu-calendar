@@ -35,7 +35,28 @@
             "format": "uri",
             "pattern": "^https?://",
             "maxLength": 2048,
-            "description": "인증 정보 없는 원문 URL. URL이 있다고 공식 출처로 인증된 것은 아닙니다."
+            "description": "인증 정보 없는 원문 URL. 공식 공지·마이크로사이트·뉴스 기사가 있으면 그 주소, 없으면 일정을 가져온 위키 페이지입니다."
+          },
+          "images": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "propertyNames": { "enum": ["kr", "jp", "en", "zh"] },
+            "patternProperties": {
+              "^(kr|jp|en|zh)$": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+\\.(png|jpe?g|webp)$",
+                "maxLength": 80
+              }
+            },
+            "description": "언어별 배너 파일명(resource/event_banner_img/ 안). 고른 언어가 없으면 일본어(jp)로 폴백하고, jp도 없으면 일반 배너를 씁니다."
+          },
+          "servers": {
+            "type": "array",
+            "items": { "enum": ["jp", "gl"] },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "적용 서버. 생략하면 전체 서버. 한국과 글로벌은 같은 후행 일정을 씁니다."
           }
         },
         "allOf": [

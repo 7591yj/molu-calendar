@@ -17,6 +17,7 @@
       <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></symbol>
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6.5 9.5 17 4 11.5"/></symbol>
       <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.1M4 12h.1M4 18h.1"/></symbol>
       <symbol id="i-code" viewBox="0 0 24 24"><path d="m7 6-5 6 5 6m10-12 5 6-5 6M14 3l-4 18"/></symbol>
       <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
@@ -37,7 +38,7 @@
     <main>
       <div class="content-layout">
         <section class="calendar-panel panel" id="calendar" aria-labelledby="month-heading">
-          <div class="calendar-toolbar"><div class="month-control"><h2 id="month-heading" aria-live="polite" tabindex="-1"></h2><div class="month-arrows"><button id="prev-month" class="icon-button" aria-label="이전 달"><svg class="flipped"><use href="#i-chevron"/></svg></button><button id="next-month" class="icon-button" aria-label="다음 달"><svg><use href="#i-chevron"/></svg></button></div><button id="today-button" class="button small quiet">오늘</button><button class="icon-button" data-import aria-label="JSON 가져오기"><svg><use href="#i-code"/></svg></button><div class="view-switch" aria-label="보기 방식"><button id="month-view" aria-label="달력 보기" aria-pressed="true"><svg><use href="#i-calendar"/></svg></button><button id="list-view" aria-label="목록 보기" aria-pressed="false"><svg><use href="#i-list"/></svg></button></div></div><div class="filter-row" id="filters" aria-label="일정 분류"></div></div>
+          <div class="calendar-toolbar"><div class="month-control"><h2 id="month-heading" aria-live="polite" tabindex="-1"></h2><div class="month-arrows"><button id="prev-month" class="icon-button" aria-label="이전 달"><svg class="flipped"><use href="#i-chevron"/></svg></button><button id="next-month" class="icon-button" aria-label="다음 달"><svg><use href="#i-chevron"/></svg></button></div><button id="today-button" class="button small quiet">오늘</button><button class="icon-button" data-import aria-label="JSON 가져오기"><svg><use href="#i-code"/></svg></button><div class="view-switch" aria-label="보기 방식"><button id="month-view" aria-label="달력 보기" aria-pressed="true"><svg><use href="#i-calendar"/></svg></button><button id="list-view" aria-label="목록 보기" aria-pressed="false"><svg><use href="#i-list"/></svg></button></div></div><div class="filter-stack"><div class="filter-row" id="filters" aria-label="일정 분류"></div><div class="filter-row server-row" id="servers" aria-label="서버"></div></div></div>
           <div id="calendar-view"><div class="weekdays" aria-hidden="true"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div><div class="calendar-grid" id="calendar-grid" role="group" aria-label="월별 일정"></div></div>
           <div class="agenda" id="agenda" hidden></div>
         </section>
@@ -66,23 +67,37 @@
   </section>
   <section id="app-settings" class="app-screen settings" aria-labelledby="app-settings-title" hidden>
     <div class="set-split">
-      <nav class="set-side" aria-label="설정 분류">
-        <div class="set-side-head"><h2 id="app-settings-title" tabindex="-1">설정</h2><button class="button small quiet" type="button" data-go-home>홈으로</button></div>
-        <button class="set-nav" type="button" data-set="general" aria-current="true"><span class="set-ico" style="--tic:#8e8e93"><svg aria-hidden="true"><use href="#i-gear"/></svg></span>일반</button>
-        <button class="set-nav" type="button" data-set="character" aria-current="false"><span class="set-ico" style="--tic:#af52de"><svg aria-hidden="true"><use href="#i-user"/></svg></span>캐릭터</button>
-        <button class="set-nav" type="button" data-set="data" aria-current="false"><span class="set-ico" style="--tic:#34c759"><svg aria-hidden="true"><use href="#i-data"/></svg></span>데이터</button>
-        <button class="set-nav" type="button" data-set="about" aria-current="false"><span class="set-ico" style="--tic:#ff9f2e"><svg aria-hidden="true"><use href="#i-info"/></svg></span>정보</button>
+      <nav class="set-side ios-scroll" id="set-side-scroll" aria-label="설정 목록">
+        <header class="ios-navbar"><span class="ios-navbar-title">설정</span></header>
+        <h2 class="ios-large-title" id="app-settings-title" tabindex="-1">설정</h2>
+        <div class="ios-section">
+          <div class="ios-card">
+            <button class="set-nav ios-row" type="button" data-set="general" aria-current="true"><span class="ios-ico" style="--tic:#8e8e93"><svg aria-hidden="true"><use href="#i-gear"/></svg></span><span class="ios-text">일반</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+            <button class="set-nav ios-row" type="button" data-set="ai" aria-current="false"><span class="ios-ico" style="--tic:#5856d6"><svg aria-hidden="true"><use href="#i-chat"/></svg></span><span class="ios-text">로컬 AI</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+            <button class="set-nav ios-row" type="button" data-set="character" aria-current="false"><span class="ios-ico" style="--tic:#af52de"><svg aria-hidden="true"><use href="#i-user"/></svg></span><span class="ios-text">캐릭터</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+            <button class="set-nav ios-row" type="button" data-set="data" aria-current="false"><span class="ios-ico" style="--tic:#34c759"><svg aria-hidden="true"><use href="#i-data"/></svg></span><span class="ios-text">데이터</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+            <button class="set-nav ios-row" type="button" data-set="about" aria-current="false"><span class="ios-ico" style="--tic:#ff9f2e"><svg aria-hidden="true"><use href="#i-info"/></svg></span><span class="ios-text">정보</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+            <button class="set-nav ios-row" type="button" data-set="dev" aria-current="false" hidden><span class="ios-ico" style="--tic:#5856d6"><svg aria-hidden="true"><use href="#i-code"/></svg></span><span class="ios-text">개발자</span><span class="ios-chevron"><svg aria-hidden="true"><use href="#i-chevron"/></svg></span></button>
+          </div>
+          <p class="ios-section-footer">MOLU 0.1.0 · 데이터 형식 schema v1</p>
+        </div>
       </nav>
       <div class="set-detail" id="set-detail">
-        <header class="set-detail-head"><button class="icon-button set-back" type="button" data-set-back aria-label="분류로 돌아가기"><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg></button><h3 id="set-detail-title" tabindex="-1">일반</h3></header>
-        <div id="set-body"></div>
+        <div class="ios-scroll" id="set-scroll">
+          <header class="ios-navbar">
+            <button class="ios-back app-back" type="button" data-app-back="settings" hidden><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg><span></span></button><button class="ios-back set-back" type="button" data-set-back><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg><span id="set-back-label">설정</span></button>
+            <span class="ios-navbar-title" id="set-compact-title">일반</span>
+          </header>
+          <h2 class="ios-large-title" id="set-detail-title" tabindex="-1">일반</h2>
+          <div id="set-body"></div>
+        </div>
       </div>
     </div>
   </section>
   <section id="app-momo-list" class="app-screen momo-list" aria-labelledby="momo-list-title" hidden>
-    <header class="momo-header momo-titlebar"><span class="momo-title-logo"><svg aria-hidden="true"><use href="#i-momo"/></svg><h2 id="momo-list-title" tabindex="-1">MomoTalk</h2></span><button class="momo-close" type="button" data-go-home aria-label="모모톡 닫기"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+    <header class="momo-header momo-titlebar"><button class="momo-backlink" type="button" data-app-back="momo-list" hidden><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg><span></span></button><span class="momo-title-logo"><svg aria-hidden="true"><use href="#i-momo"/></svg><h2 id="momo-list-title" tabindex="-1">MomoTalk</h2></span><button class="momo-close" type="button" data-go-home aria-label="모모톡 닫기"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="momo-pick">
-      <nav class="momo-side" aria-label="모모톡 보기 전환"><button type="button" class="momo-side-item" data-mpane="friends" aria-pressed="true" aria-label="친구"><svg aria-hidden="true"><use href="#i-users"/></svg></button><button type="button" class="momo-side-item" data-mpane="chat" aria-pressed="false" aria-label="채팅"><svg aria-hidden="true"><use href="#i-chat"/></svg><span class="momo-side-count" id="momo-side-unread" hidden></span></button></nav>
+      <nav class="momo-side" aria-label="모모톡 보기 전환"><button type="button" class="momo-side-item" data-mpane="friends" aria-pressed="true" aria-label="친구"><svg aria-hidden="true"><use href="#i-users"/></svg></button><button type="button" class="momo-side-item" data-mpane="chat" aria-pressed="false" aria-label="채팅"><svg aria-hidden="true"><use href="#i-chat"/></svg><span class="momo-side-count" id="momo-side-unread" hidden></span></button><button type="button" class="momo-side-item" id="momo-side-settings" aria-label="모모톡 설정"><svg aria-hidden="true"><use href="#i-gear"/></svg></button></nav>
       <div class="momo-pick-main">
         <div id="momo-pane-chat">
           <div class="momo-tabs" role="tablist" aria-label="대화 목록 필터"><button type="button" role="tab" id="momo-tab-all" aria-selected="true">전체</button><button type="button" role="tab" id="momo-tab-unread" aria-selected="false">읽지 않음<span class="momo-tab-count" id="momo-tab-unread-count" hidden></span></button></div>
@@ -100,15 +115,27 @@
   </section>
   <section id="app-momotalk" class="app-screen momotalk" aria-labelledby="app-momotalk-title" hidden>
     <header class="momo-header">
-      <button class="icon-button momo-back" type="button" data-momo-back aria-label="대화 목록으로"><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+      <button class="momo-backlink" type="button" data-app-back="momotalk" hidden><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg><span></span></button><button class="icon-button momo-back" type="button" data-momo-back aria-label="대화 목록으로"><svg class="flipped" aria-hidden="true"><use href="#i-chevron"/></svg></button>
       <button class="momo-peer-button" id="momo-profile-open" type="button" aria-label="프로필 열기">
         <span class="momo-avatar" id="momo-peer-avatar" aria-hidden="true"></span>
         <span class="momo-peer"><strong id="app-momotalk-title">아로나</strong><small id="momo-peer-sub">온라인</small><small class="momo-peer-org" id="momo-peer-org"></small></span>
       </button>
     </header>
+    <div id="momo-store-status" class="momo-store-status" role="status" hidden>
+      <span id="momo-store-text"></span>
+      <span class="momo-store-actions">
+        <button type="button" id="momo-store-retry" hidden>다시 시도</button>
+        <button type="button" id="momo-store-export" hidden>기록 내보내기</button>
+      </span>
+    </div>
     <div id="momo-messages" class="momo-messages" role="log" aria-label="아로나와의 대화"></div>
+    <div id="momo-message-menu" class="momo-message-menu" role="menu" aria-label="메시지 메뉴" hidden>
+      <button type="button" id="momo-message-save" role="menuitem">기억하기</button>
+      <button type="button" id="momo-message-cancel" role="menuitem">닫기</button>
+    </div>
     <div id="momo-replies" class="momo-replies" aria-label="답장 선택" hidden></div>
     <form id="momo-form" class="momo-form" autocomplete="off">
+      <button id="momo-ai-settings" class="momo-model-guide" type="button" hidden>로컬 AI 모델을 설정해 주세요 · 설정으로 이동</button>
       <input id="momo-input" type="text" placeholder="메시지를 입력하세요" maxlength="200" aria-label="메시지 입력">
       <button class="momo-send" type="submit" aria-label="전송"><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
     </form>
@@ -120,6 +147,17 @@
         <p class="momo-profile-status" id="momo-profile-status"></p>
         <dl class="momo-profile-facts" id="momo-profile-facts"></dl>
         <p class="momo-profile-intro" id="momo-profile-intro"></p>
+        <section class="momo-memory" aria-labelledby="momo-memory-title">
+          <h4 id="momo-memory-title">이 대화의 기억</h4>
+          <p class="momo-memory-hint">모델에게 다시 알려 줄 짧은 사실을 저장합니다. 이 방에서만 쓰이며, 방 기록을 지우면 함께 사라집니다.</p>
+          <div class="momo-memory-search"><input id="momo-memory-query" type="search" placeholder="기억 검색" aria-label="기억 검색" autocomplete="off"></div>
+          <ul id="momo-memory-list" class="momo-memory-list"></ul>
+          <form id="momo-memory-add" class="momo-memory-add">
+            <input id="momo-memory-input" type="text" maxlength="500" placeholder="기억할 내용을 입력하세요" aria-label="새 기억">
+            <button type="submit">추가</button>
+          </form>
+        </section>
+        <button class="momo-profile-delete" id="momo-profile-delete" type="button">이 대화 기록 삭제</button>
       </div>
     </div>
   </section>
@@ -132,13 +170,35 @@
   <dialog id="import-dialog" aria-labelledby="import-title">
     <form id="import-form">
       <div class="dialog-heading"><div><span class="eyebrow">CONNECT YOUR SCHEDULE</span><h2 id="import-title">일정 데이터 가져오기</h2></div><button type="button" class="icon-button" data-close aria-label="닫기"><svg><use href="#i-close"/></svg></button></div>
-      <div class="import-layout"><div class="editor-section"><div class="editor-toolbar"><label for="json-input">schedule.json</label><button type="button" class="text-button" id="fill-example">샘플 채우기</button></div><textarea id="json-input" aria-describedby="json-help import-error" spellcheck="false" placeholder="JSON을 여기에 붙여넣으세요."></textarea><label class="file-drop" id="file-drop"><input type="file" id="file-input" accept=".json,application/json"><svg><use href="#i-upload"/></svg><span>JSON 파일 선택 또는 끌어놓기</span><small>최대 1MB</small></label></div><div class="schema-guide"><span class="guide-label">FORMAT GUIDE / V1</span><h3>한 번 정한 형식으로,<br>계속 연결할 수 있게.</h3><p id="json-help">최상위는 <code>schema_version: 1</code>과 <code>events: []</code>입니다.</p><dl><dt>id · title · category</dt><dd>고유 ID · 일정 이름 · 분류</dd><dt>all_day · start · end</dt><dd>종일 여부 · 시작 · 종료(미포함)</dd><dt>status · source_url</dt><dd>진행 상태 · 원문 링크 (선택)</dd></dl><div class="guide-note">같은 ID는 갱신, 새 ID는 추가합니다. 파일에 없는 기존 일정은 유지됩니다. 첫 가져오기에서는 샘플을 교체합니다.</div><p class="guide-footnote">시각은 <code>+09:00</code> 등 시간대를 포함해 주세요. ‘점검 후’처럼 미정인 시각은 임의로 채우지 않습니다.</p><a href="schema.json" target="_blank" rel="noopener" class="schema-link">전체 JSON Schema 보기 ↗</a></div></div>
+      <div class="import-layout"><div class="editor-section"><div class="editor-toolbar"><label for="json-input">schedule.json</label><button type="button" class="text-button" id="fill-example">내장 일정 채우기</button></div><textarea id="json-input" aria-describedby="json-help import-error" spellcheck="false" placeholder="JSON을 여기에 붙여넣으세요."></textarea><label class="file-drop" id="file-drop"><input type="file" id="file-input" accept=".json,application/json"><svg><use href="#i-upload"/></svg><span>JSON 파일 선택 또는 끌어놓기</span><small>최대 1MB</small></label></div><div class="schema-guide"><span class="guide-label">FORMAT GUIDE / V1</span><h3>한 번 정한 형식으로,<br>계속 연결할 수 있게.</h3><p id="json-help">최상위는 <code>schema_version: 1</code>과 <code>events: []</code>입니다.</p><dl><dt>id · title · category</dt><dd>고유 ID · 일정 이름 · 분류</dd><dt>all_day · start · end</dt><dd>종일 여부 · 시작 · 종료(미포함)</dd><dt>status · source_url · images</dt><dd>진행 상태 · 원문 링크 · 언어별 배너 파일명 (선택)</dd><dt>servers</dt><dd>적용 서버(jp · gl, 생략하면 전체)</dd></dl><div class="guide-note">같은 ID는 갱신, 새 ID는 추가합니다. 파일에 없는 기존 일정은 유지됩니다. 첫 가져오기에서는 내장 일정을 교체합니다.</div><p class="guide-footnote">시각은 <code>+09:00</code> 등 시간대를 포함해 주세요. ‘점검 후’처럼 미정인 시각은 임의로 채우지 않습니다.</p><a href="schema.json" target="_blank" rel="noopener" class="schema-link">전체 JSON Schema 보기 ↗</a></div></div>
       <p id="import-error" class="form-error" role="alert" hidden></p>
       <div class="dialog-footer"><span>검증 후 이 브라우저에만 저장됩니다.</span><button type="button" class="button quiet" data-close>취소</button><button type="submit" class="button primary">캘린더에 반영<svg><use href="#i-arrow"/></svg></button></div>
     </form>
   </dialog>
 
   <dialog id="event-dialog" aria-labelledby="event-title"><div class="dialog-heading"><span class="eyebrow">SCHEDULE INFORMATION</span><div class="dialog-actions"><button id="bookmark-button" class="icon-button" type="button" aria-label="북마크" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v16l-7-4.2L5 21V5a1 1 0 0 1 1-1z"/></svg></button><button class="icon-button" data-close aria-label="닫기"><svg><use href="#i-close"/></svg></button></div></div><div class="event-detail"><img id="event-banner" class="event-banner" alt=""><div id="event-tags" class="event-tags"></div><h2 id="event-title"></h2><div class="detail-time-grid" role="group" aria-label="등록된 시작과 종료 시각"><div class="time-endpoint"><span>START / 시작</span><strong id="event-start-clock"></strong><small id="event-start-date"></small></div><span class="time-direction" aria-hidden="true">→</span><div class="time-endpoint"><span>END / 종료</span><strong id="event-end-clock"></strong><small id="event-end-date"></small></div></div><p id="event-range"></p><span class="detail-timezone">ASIA / SEOUL · KST</span><p id="event-description"></p><a id="event-source" class="button primary" target="_blank" rel="noopener noreferrer">공식 원문이 아닌 경우도 있으니 출처를 확인하세요<svg><use href="#i-link"/></svg></a><div class="event-id"><span>EVENT ID</span><code id="event-id"></code></div></div></dialog>
+  <dialog id="crop-dialog" aria-labelledby="crop-title" aria-describedby="crop-help">
+    <div class="dialog-heading"><h2 id="crop-title">배너 크롭 편집</h2></div>
+    <div class="crop-editor-body">
+      <p id="crop-help">숫자 입력 또는 영역·가장자리·모서리 드래그로 조정하세요. 2:1 비율을 유지하며 원본 밖은 투명합니다. 위치 50%는 원본 중심입니다.</p>
+      <p id="crop-filename" class="crop-file"></p>
+      <div class="crop-view-controls" role="group" aria-label="편집 화면 확대 축소">
+        <button id="crop-view-out" class="button quiet small" type="button" aria-label="보기 축소">−</button>
+        <label for="crop-view-zoom">보기 <input id="crop-view-zoom" type="number" min="10" max="400" step="1" value="100">%</label>
+        <button id="crop-view-in" class="button quiet small" type="button" aria-label="보기 확대">+</button>
+        <button id="crop-view-fit" class="button quiet small" type="button">영역 맞춤</button>
+      </div>
+      <div class="crop-original-wrap"><div id="crop-stage"><img id="crop-original" alt="크롭할 원본 이미지" draggable="false"><div id="crop-selection" hidden aria-hidden="true"><span data-crop-handle="n"></span><span data-crop-handle="e"></span><span data-crop-handle="s"></span><span data-crop-handle="w"></span><span data-crop-handle="nw"></span><span data-crop-handle="ne"></span><span data-crop-handle="sw"></span><span data-crop-handle="se"></span></div></div></div>
+      <div class="crop-scale-control"><label for="crop-scale-number">영역 크기 <input id="crop-scale-number" type="number" min="25" max="500" step="0.1" value="100" disabled>%</label><input id="crop-scale" type="range" min="25" max="500" step="0.1" value="100" aria-label="영역 크기" disabled></div>
+      <div class="crop-position-controls">
+        <div><label for="crop-x-number">가로 위치 <input id="crop-x-number" type="number" min="-500" max="500" step="0.1" value="50" disabled>%</label><input id="crop-x" type="range" min="-500" max="500" step="0.1" value="50" aria-label="가로 위치" disabled></div>
+        <div><label for="crop-y-number">세로 위치 <input id="crop-y-number" type="number" min="-500" max="500" step="0.1" value="50" disabled>%</label><input id="crop-y" type="range" min="-500" max="500" step="0.1" value="50" aria-label="세로 위치" disabled></div>
+      </div>
+      <p class="crop-preview-label">배너 미리보기</p><img id="crop-preview" alt="선택 영역 배너 미리보기">
+      <p id="crop-error" role="alert" hidden></p>
+    </div>
+    <div class="dialog-footer"><button id="crop-reset" class="button quiet" type="button">원래대로</button><button id="crop-cancel" class="button quiet" type="button">취소</button><button id="crop-save" class="button primary" type="button" disabled>저장</button></div>
+  </dialog>
   <div id="character-stage" class="character-stage" data-state="off" aria-hidden="true" hidden></div>
   <aside id="character-controls" class="character-controls" aria-label="구라 테스트 캐릭터 제어" hidden><div><strong>GAWR GURA <span>PMX / LOCAL</span></strong><small id="character-motion-note">간이 걷기 · VMD 미사용</small></div><button id="character-motion" type="button" aria-pressed="true">걷기 멈춤</button><button id="character-hide" type="button" aria-label="구라 숨기기">×</button></aside>
   <button class="home-indicator" id="home-indicator" type="button" aria-label="홈으로"><span></span></button>

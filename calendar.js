@@ -1,3 +1,5 @@
+import { raidImages } from './raid-banners.js';
+
 export const TIME_ZONE = 'Asia/Seoul';
 export const CATEGORIES = {
   maintenance: { label: '점검·업데이트', color: '#687795' },
@@ -6,6 +8,29 @@ export const CATEGORIES = {
   campaign: { label: '캠페인', color: '#19896b' },
 };
 export const STATUSES = { confirmed: '확정', tentative: '예정', postponed: '연기', cancelled: '취소' };
+// 서버: 일본은 선행 일정, 한국·글로벌은 후행 일정(같은 트랙)이다.
+export const SERVERS = {
+  jp: { label: '일본', short: 'JP' },
+  gl: { label: '한국·글로벌', short: 'KR·GL' },
+};
+export function eventServers(event) {
+  const servers = Array.isArray(event.servers) ? event.servers.filter(server => Object.hasOwn(SERVERS, server)) : [];
+  return servers.length ? servers : Object.keys(SERVERS);
+}
+// 서버 필터와 별개로 배너는 언어 설정을 따른다.
+export const LANGS = { kr: '한국어', jp: '日本語', en: 'English', zh: '中文' };
+export const FALLBACK_LANG = 'jp';
+export function countryLanguage(country, fallback = 'kr') {
+  if (typeof country !== 'string' || !/^[A-Z]{2}$/.test(country)) return fallback;
+  return ({ KR: 'kr', JP: 'jp', CN: 'zh', TW: 'zh', HK: 'zh', MO: 'zh' })[country] ?? 'en';
+}
+export function eventImageCandidates(event, lang) {
+  const images = { ...(object(event?.images) ? event.images : {}), ...raidImages(event) };
+  return [...new Set([images[lang], images[FALLBACK_LANG], ...Object.values(images)].filter(file => typeof file === 'string'))];
+}
+export function eventImage(event, lang) {
+  return eventImageCandidates(event, lang)[0] ?? null;
+}
 export const MAX_BYTES = 1024 * 1024;
 export const MAX_EVENTS = 1000;
 const remap = category => ({ update: 'maintenance', other: 'event' })[category] ?? category;
@@ -73,6 +98,36 @@ export function overlaps(event, from, to) {
   return first < to && last >= from;
 }
 
+// Split visible day indices into week-row segments: a spanning bar cannot cross row boundaries.
+export function segments(indices) {
+  return indices.reduce((runs, index) => {
+    const last = runs[runs.length - 1];
+    if (last && index === last[last.length - 1] + 1 && Math.floor(index / 7) === Math.floor(last[last.length - 1] / 7)) last.push(index);
+    else runs.push([index]);
+    return runs;
+  }, []);
+}
+
+// Clock time as a fraction of one day cell width (11:00 → 11/24).
+export function timeFrac(clock) {
+  const [hours, minutes] = clock.split(':').map(Number);
+  return hours / 24 + (minutes ?? 0) / 1440;
+}
+
+// Greedy lane assignment. Bars may share a lane when the previous one's fractional
+// end position is at or before the next one's fractional start position on the same day.
+export function assignLanes(segs) {
+  segs.sort((x, y) => x.startPos - y.startPos || x.endPos - y.endPos);
+  const laneEnds = [];
+  for (const seg of segs) {
+    let lane = laneEnds.findIndex(end => end <= seg.startPos);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = seg.endPos;
+    seg.lane = lane;
+  }
+  return laneEnds.length;
+}
+
 export function clockLabel(value) {
   return clockFormatter.format(new Date(value));
 }
@@ -119,13 +174,21 @@ export function validateBundle(input) {
   const events = input.events.map((item, index) => {
     const fail = message => { throw new Error(`${index + 1}번째 일정: ${message}`); };
     if (!object(item)) fail('객체 형식이어야 합니다.');
-    const allowed = ['id', 'title', 'category', 'all_day', 'start', 'end', 'status', 'description', 'source_url'];
+    const allowed = ['id', 'title', 'category', 'all_day', 'start', 'end', 'status', 'description', 'source_url', 'images', 'servers'];
     const unknown = Object.keys(item).find(key => !allowed.includes(key));
     if (unknown) fail(`지원하지 않는 필드 '${unknown}'입니다. 형식 안내를 확인해 주세요.`);
     if (typeof item.id !== 'string' || !/^[a-zA-Z0-9._:-]{1,120}$/.test(item.id)) fail('id는 영문·숫자·._:- 조합의 1~120자여야 합니다.');
     if (ids.has(item.id)) fail(`id '${item.id}'가 파일 안에서 중복됩니다.`);
     ids.add(item.id);
+    if (item.servers !== undefined && (!Array.isArray(item.servers) || !item.servers.length || new Set(item.servers).size !== item.servers.length || item.servers.some(server => !Object.hasOwn(SERVERS, server)))) fail('servers는 jp, gl 중 1개 이상이어야 합니다.');
     if (typeof item.title !== 'string' || !item.title.trim() || item.title.length > 160) fail('title은 비어 있지 않은 160자 이내 문자열이어야 합니다.');
+    if (item.images !== undefined) {
+      if (!object(item.images) || !Object.keys(item.images).length) fail('images는 비어 있지 않은 언어별 배너 파일명 객체여야 합니다.');
+      for (const [lang, file] of Object.entries(item.images)) {
+        if (!Object.hasOwn(LANGS, lang)) fail(`images의 언어 키는 ${Object.keys(LANGS).join(', ')} 중 하나여야 합니다.`);
+        if (typeof file !== 'string' || !/^[A-Za-z0-9_-]+\.(?:png|jpe?g|webp)$/.test(file)) fail('images의 값은 resource/event_banner_img/ 안의 파일명이어야 합니다.');
+      }
+    }
     if (!Object.hasOwn(CATEGORIES, remap(item.category))) fail(`category는 ${Object.keys(CATEGORIES).join(', ')} 중 하나여야 합니다. 'update'는 'maintenance', 'other'는 'event'에 합쳐졌습니다.`);
     if (typeof item.all_day !== 'boolean') fail('all_day에 true 또는 false가 필요합니다.');
     const check = item.all_day ? validDate : validInstant;
@@ -147,6 +210,8 @@ export function validateBundle(input) {
       status: item.status ?? 'confirmed',
       ...(item.description ? { description: item.description } : {}),
       ...(item.source_url ? { source_url: item.source_url } : {}),
+      ...(item.images ? { images: item.images } : {}),
+      servers: item.servers ?? Object.keys(SERVERS),
     };
   });
   return { schema_version: 1, events };
@@ -180,13 +245,6 @@ export function bannerEvents(events, now = new Date()) {
   return current.length ? current : events.filter(event => !['cancelled', 'postponed'].includes(event.status)).sort(compareEvents);
 }
 
-// 이벤트 id를 배너 이미지 슬롯에 고정 매핑한다: 같은 일정은 어디서든 같은 배너.
-export function bannerIndex(id, count) {
-  let hash = 5381;
-  for (let i = 0; i < id.length; i++) hash = (hash * 33 ^ id.charCodeAt(i)) >>> 0;
-  return hash % count;
-}
-
 // 이벤트 남은 시간 칩: '종료까지 Day -1' / '종료까지 14:30' / '시작까지 Day -2' / '종료'. 종료 미정이면 null.
 function countdown(ms) {
   const days = Math.floor(ms / 86400000);
@@ -212,29 +270,4 @@ export function mergeEvents(existing, incoming) {
   incoming.forEach(event => merged.set(event.id, event));
   if (merged.size > MAX_EVENTS) throw new Error(`저장 가능한 전체 일정은 최대 ${MAX_EVENTS}개입니다.`);
   return [...merged.values()].sort(compareEvents);
-}
-
-export function demoBundle(today = dateKey()) {
-  const month = today.slice(0, 7);
-  const day = number => `${month}-${String(number).padStart(2, '0')}`;
-  const next = shiftMonth(month, 1);
-  const nextDay = number => `${next}-${String(number).padStart(2, '0')}`;
-  const sample = (id, title, category, start, end, all_day = false) => ({
-    id: `demo-${id}`, title, category, all_day, start, end, status: 'confirmed',
-    description: '화면 체험을 위한 가상 일정입니다. 실제 블루 아카이브 운영 일정이 아닙니다.',
-  });
-  return { schema_version: 1, events: [
-    sample('maintenance', '정기 업데이트 점검', 'maintenance', `${day(8)}T11:00:00+09:00`, `${day(8)}T15:00:00+09:00`),
-    sample('pickup', '밀레니엄 픽업 모집', 'pickup', `${day(8)}T15:00:00+09:00`, `${day(22)}T11:00:00+09:00`),
-    sample('story', '새로운 메인 스토리 공개', 'maintenance', `${day(8)}T15:00:00+09:00`, `${day(8)}T16:00:00+09:00`),
-    sample('event', '게임개발부의 특별한 하루', 'event', day(12), day(20), true),
-    sample('campaign', '임무 보상 2배 캠페인', 'campaign', `${day(15)}T04:00:00+09:00`, `${day(18)}T04:00:00+09:00`),
-    sample('mission', '샬레 특별 미션', 'event', day(22), day(28), true),
-    sample('maintenance-next', '정기점검 예정', 'maintenance', `${day(22)}T11:00:00+09:00`, `${day(22)}T14:00:00+09:00`),
-    sample('weekend', '계정 경험치 2배', 'campaign', day(26), day(28), true),
-    // 배너·카운트다운 칩 테스트용: 다음 달 일정과 어제~모레 롤링 일정 (항상 진행 중/임박 상태가 되게 한다)
-    sample('pickup-next', '다음 달 픽업 모집', 'pickup', `${nextDay(1)}T15:00:00+09:00`, `${nextDay(11)}T11:00:00+09:00`),
-    sample('event-next', '다음 달 신규 이벤트', 'event', nextDay(5), nextDay(15), true),
-    sample('rolling', '테스트 카운트다운', 'campaign', `${addDays(today, -1)}T18:00:00+09:00`, `${addDays(today, 2)}T18:00:00+09:00`),
-  ] };
 }
