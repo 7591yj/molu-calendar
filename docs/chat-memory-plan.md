@@ -266,6 +266,8 @@ DB 이름 예시: `molu-chat-memory`.
 
 ### Phase 5 — 브라우저·복구·품질 검증과 MVP 판단 (`TODO #23`)
 
+**상태(2026-10):** 일부 완료. 세 엔진(Chromium·WebKit·Firefox) 앱 점검, 저장 실패·중단/재시도 경로, 1만 메시지 규모 측정, 백업→복원 검증은 완료. **앱 모델(Gemma 4 LiteRT)로의 기억 사용 전/후 품질 비교는 미완**(이 Mac의 디스크 부족으로 다운로드 90%에서 실패 → 다른 컴퓨터에서 `tools/local-ai-live-check.mjs`로 이어서 확인). 할당량·persist·성능 일반화는 미착수.
+
 **목표:** 저장소가 되는 것과 모델이 기억을 제대로 쓰는 것을 따로 검증한다.
 
 - [ ] Chromium/Safari/Firefox의 실제 IndexedDB에서 조회·갱신·이관·삭제 검사. GPU 추론 지원 여부는 별도 표기.
