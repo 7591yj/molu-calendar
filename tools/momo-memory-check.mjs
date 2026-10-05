@@ -12,14 +12,23 @@ import { makeServer } from '../server.js';
 import { BENCHMARK, DEFAULT_MODEL_ID, WEBGPU_LIMITS } from '../local-ai.js';
 
 // 페이지→Worker 입력 조립만 확인하는 가짜 Worker. 실제 추론·모델 다운로드는 하지 않는다.
-const fakeWorker = (delayMs = 0) => FAKE_WORKER.replace('__DELAY__', String(delayMs));
+const fakeWorker = (delayMs = 0, failFirst = false) => FAKE_WORKER
+  .replace('__DELAY__', String(delayMs))
+  .replace('__FAIL_FIRST__', failFirst ? 'true' : 'false');
 const FAKE_WORKER = `
 self.onmessage = async ({ data }) => {
   const { id, action } = data;
   const delay = __DELAY__;   // 탭별로 생성 지연을 넣어 동시 생성 감지를 시험한다
+  const failFirst = __FAIL_FIRST__;   // 첫 생성만 실패시켜 '답변 다시 시도' 경로를 시험한다
+  let generations = 0;
   const echo = (label, payload) => fetch('./__momo-ai-capture__?data=' + encodeURIComponent(JSON.stringify({ label, ...payload })), { method: 'GET' });
   if (action === 'load') { self.postMessage({ id, done: true, result: { loadMs: 1 } }); return; }
   if (action === 'generate') {
+    generations += 1;
+    if (failFirst && generations === 1) {
+      self.postMessage({ id, done: true, error: { code: 'runtime', message: '가짜 Worker 실패(재시도 시험)' } });
+      return;
+    }
     self.postMessage({ id, event: 'started' });
     self.postMessage({ id, event: 'trace', characterId: data.characterId, messageChars: 1, promptChars: 2,
       memories: (data.memories ?? []).length, excerpts: (data.excerpts ?? []).length, referenceChars: (data.memories ?? []).length + (data.excerpts ?? []).length });
@@ -334,6 +343,76 @@ try {
     .filter(row => !row.querySelector('.momo-typing')).length === expected, watcherBefore + 2, { timeout: 15000 });
   assert.deepEqual(multiErrors, [], '두 탭 페이지 오류 없음');
   await multiContext.close();
+
+  // 중단·재시도 경로: 생성 중 새로고침으로 답이 사라지면 사용자 메시지는 남고,
+  // 모델을 다시 준비한 뒤 '답변 다시 시도'가 같은 메시지로 재생성한다(중복 0건).
+  const retryContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  retryContext.setDefaultTimeout(60_000);
+  const retryPage = await retryContext.newPage();
+  const retryErrors = [];
+  retryPage.on('pageerror', error => retryErrors.push(error.message));
+  retryPage.on('dialog', dialog => dialog.accept());
+  const retryCaptures = [];
+  await retryPage.route('**/__momo-ai-capture__*', route => {
+    retryCaptures.push(JSON.parse(new URL(route.request().url()).searchParams.get('data')));
+    return route.fulfill({ status: 204, body: '' });
+  });
+  await retryPage.route('**/local-ai-worker.bundle.js', route => route.fulfill({ contentType: 'text/javascript', body: fakeWorker(3000) }));
+  await retryPage.addInitScript(({ settings, limits }) => {
+    localStorage.setItem('molu.local-ai.v1', settings);
+    Object.defineProperty(navigator, 'gpu', { configurable: true, value: { requestAdapter: async () => ({
+      info: { vendor: 'check' }, features: new Set(['shader-f16']), limits, requestDevice: async () => null }) } });
+    sessionStorage.removeItem('momo-retry-seeded');
+  }, { settings: JSON.stringify({ catalogVersion: BENCHMARK.version, modelId: DEFAULT_MODEL_ID, momoEnabled: true }), limits: WEBGPU_LIMITS });
+  const loadModel = async page => {
+    await page.locator('#home-indicator').click();
+    await page.locator('[data-app="settings"]').click();
+    await page.locator('[data-set="ai"]').click();
+    await page.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
+    await page.getByRole('button', { name: '다운로드·로드', exact: true }).click();
+    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''), null, { timeout: 30_000 });
+  };
+  const openArona = async page => {
+    await page.locator('#home-indicator').click();
+    await page.locator('[data-app="momo-list"]').click();
+    await page.locator('[data-mpane="chat"]').click();
+    await page.locator('#momo-chats .chat-row', { hasText: '아로나' }).click();
+    await page.waitForFunction(() => document.querySelector('#app-momotalk').hidden === false);
+  };
+  await retryPage.goto(base);
+  await loadModel(retryPage);
+  await openArona(retryPage);
+  // 방 로딩이 끝나고 입력이 열릴 때까지 기다린 뒤 기준 행 수를 잰다.
+  await retryPage.waitForFunction(() => document.querySelectorAll('#momo-messages .momo-row').length > 0);
+  await retryPage.waitForFunction(() => document.querySelector('#momo-input').hidden === false, null, { timeout: 30_000 });
+  const retryRows = () => retryPage.$$eval('#momo-messages .momo-row', rows => rows.filter(row => !row.querySelector('.momo-typing')).length);
+  const beforeRetry = await retryRows();
+  await retryPage.locator('#momo-input').fill('중단되어도 남아 있어야 해');
+  await retryPage.locator('#momo-form .momo-send').click();
+  await retryPage.waitForFunction(() => document.querySelector('#momo-messages .momo-typing'), null, { timeout: 30_000 });
+  await retryPage.reload();   // 생성 중 새로고침: 답변은 저장되지 않는다
+  await retryPage.waitForFunction(() => document.querySelector('#app-momotalk').hidden === false, null, { timeout: 30_000 });
+  await retryPage.waitForFunction(expected => [...document.querySelectorAll('#momo-messages .momo-row')]
+    .filter(row => !row.querySelector('.momo-typing')).length === expected, beforeRetry + 1, { timeout: 30_000 });
+  assert.equal(await retryPage.evaluate(() => document.querySelector('#momo-messages').textContent.includes('가짜 답변이 도착했어요')), false, '중단된 답변은 저장되지 않는다');
+  // 모델을 다시 준비하면 같은 사용자 메시지로 재시도할 수 있다.
+  await loadModel(retryPage);
+  await openArona(retryPage);
+  await retryPage.waitForFunction(() => document.querySelectorAll('#momo-replies .momo-reply-option').length > 0, null, { timeout: 30_000 });
+  assert.match(await retryPage.locator('#momo-replies .momo-reply-option').first().textContent(), /답변 다시 시도/);
+  const countText = text => retryPage.evaluate(value => document.querySelector('#momo-messages').textContent.split(value).length - 1, text);
+  assert.equal(await countText('중단되어도 남아 있어야 해'), 1, '사용자 메시지는 한 번만 저장');
+  await retryPage.locator('#momo-replies .momo-reply-option').first().click();
+  await retryPage.waitForFunction(expected => [...document.querySelectorAll('#momo-messages .momo-row')]
+    .filter(row => !row.querySelector('.momo-typing')).length === expected, beforeRetry + 2, { timeout: 30_000 });
+  assert.equal(await countText('중단되어도 남아 있어야 해'), 1, '재시도해도 사용자 메시지는 한 번뿐');
+  assert.ok(retryCaptures.length >= 1, '재시도가 Worker 요청을 보낸다');
+  const retryPayload = retryCaptures.at(-1);
+  assert.equal(retryPayload.messages.at(-1).content, '중단되어도 남아 있어야 해', '재시도는 같은 질문으로 생성');
+  assert.equal(retryPayload.messages.filter(message => message.content === '중단되어도 남아 있어야 해').length, 1, '문맥에 질문이 한 번만 들어간다');
+  assert.ok(retryPayload.messages.every(message => message.role === 'user' || message.role === 'assistant'));
+  assert.deepEqual(retryErrors, [], '재시도 경로 페이지 오류 없음');
+  await retryContext.close();
 
   console.log(`momo memory check (${engineName}): ok`, JSON.stringify({ restored: restored.map(row => row.name), backupMessages: parsed.messages.length }));
 } finally {
