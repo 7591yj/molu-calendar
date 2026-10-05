@@ -82,3 +82,38 @@ test('management search keeps disabled and expired memories visible', () => {
   assert.deepEqual(filterMemories(rows, '   '), rows);
   assert.throws(() => filterMemories('nope', 'x'), /배열/);
 });
+
+test('relevance absorbs Korean endings and ranks multi-word matches above single shared words', () => {
+  // 어미·파생형: '게임' ↔ '게임하기로', '적어' ↔ '적는'
+  assert.ok(relevance('나랑 게임 약속 기억해?', '우리는 밤에 같이 게임하기로 했어') > .34);
+  assert.ok(relevance('내가 기록 어떻게 적는다고 했지?', '선생님은 지출 기록을 수첩에 적어') > .34);
+  // 한 단어만 겹치는 흔한 표현보다, 두 단어 이상 겹치는 사실이 높게 나온다(발췌 상위 선택).
+  const question = '나 커피 하루에 몇 잔 마신다고 했지?';
+  const fact = '선생님은 커피를 하루 두 잔 마셔';
+  const distractor = '오늘 하루 어땠어? 잘 지내고 있어.';
+  assert.ok(relevance(question, fact) > relevance(question, distractor), `${relevance(question, fact)} > ${relevance(question, distractor)}`);
+});
+
+test('natural phrasings retrieve the saved memory from distractors', () => {
+  const NOW = 1_700_000_000_000;
+  const memory = (id, text) => ({ id, roomId: 'Yuuka', text, enabled: true, expiresAt: null, createdAt: NOW, updatedAt: NOW,
+    sourceMessageId: null, sourceText: null });
+  const cases = [
+    { fact: '선생님은 커피를 하루 두 잔 마셔', questions: ['나 커피 하루에 몇 잔 마신다고 했지?', '내가 커피 몇 잔 마시는지 기억해?', '내 커피 습관 알지?'] },
+    { fact: '선생님은 지출 기록을 수첩에 적어', questions: ['내가 지출 기록 어디에 적는다고 했지?', '내 지출 기록 어떻게 하고 있어?'] },
+    { fact: '우리는 밤에 같이 게임하기로 했어', questions: ['우리 게임 언제 하기로 했지?', '나랑 게임 약속 기억해?', '게임 하기로 한 거 있었나?'] },
+    { fact: '선생님은 아침에 산책을 해', questions: ['내가 아침에 뭐 한다고 했지?', '내 산책 습관 기억해?'] },
+  ];
+  const distractors = ['선생님은 라면을 좋아해', '선생님은 야근이 많아', '선생님은 낮잠을 잘 자', '선생님은 커피 값에 예민해', '오늘 하루 어땠어? 잘 지내고 있어.'];
+  for (const { fact, questions } of cases) {
+    const rows = [memory('fact', fact), ...distractors.map((text, index) => memory(`d${index}`, text))];
+    for (const question of questions) {
+      const selected = selectMemories(rows, { roomId: 'Yuuka', query: question, now: NOW });
+      const chosen = selected.map(entry => entry.text);
+      assert.equal(chosen[0], fact, `"${question}" 최상위가 사실이어야 함: ${chosen.join(' | ')}`);
+      // 무관한 기억은 상대 하한(최상위의 80%)에서 걸러진다: 흔한 단어 하나만 겹치는 항목은 들어오지 않는다.
+      assert.ok(!chosen.includes('오늘 하루 어땠어? 잘 지내고 있어.'), `"${question}" → ${chosen.join(' | ')}`);
+      assert.ok(chosen.length <= 2, `"${question}" → ${chosen.join(' | ')}`);
+    }
+  }
+});

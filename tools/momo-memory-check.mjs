@@ -350,8 +350,16 @@ try {
     await page.locator('[data-app="settings"]').click();
     await page.locator('[data-set="ai"]').click();
     await page.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
-    await page.getByRole('button', { name: '다운로드·로드', exact: true }).click();
-    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''));
+    // 부하가 걸리면 클릭이 삼켜질 수 있다: 준비 완료까지 두 번까지 시도한다(앱 재시도와 같은 경로).
+    let loaded = false;
+    for (let attempt = 0; attempt < 2 && !loaded; attempt++) {
+      await page.getByRole('button', { name: '다운로드·로드', exact: true }).click();
+      try {
+        await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''));
+        loaded = true;
+      } catch { await page.waitForTimeout(500); }
+    }
+    assert.equal(loaded, true, '가짜 Worker 로드 완료');
     await page.locator('#home-indicator').click();
     await page.locator('[data-app="momo-list"]').click();
     await page.locator('[data-mpane="chat"]').click();

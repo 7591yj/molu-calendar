@@ -8,25 +8,36 @@ export const MESSAGE_LIMIT = 20;        // 검색 결과 상한
 export const MESSAGE_SCAN_LIMIT = 2_000; // 한 번에 검사하는 원문 수 상한
 export const QUERY_MAX_LENGTH = 200;
 const MIN_SCORE = .34;                  // 실측: 관련 문장 ≥.4, 무관한 문장 ≤.2
+// 흔한 기능어는 어절 일치로 세지 않는다: '있어' 하나로 무관한 기억이 걸리는 것을 막는다.
+const FUNCTION_WORDS = new Set(['있어', '있나', '있는', '있다', '있었', '없어', '하는', '하고', '해서', '했다', '해요', '네요',
+  '거야', '거지', '같아', '같은', '이야', '이지', '되는', '된', '하는지', '했지', '했어']);
 
 const clamp = (value, max) => value.length > max ? `${value.slice(0, max - 1)}…` : value;
 
-// 질의와 문장의 어절·2-gram dice 유사도. 형태소 분석기 없이 한국어 어미 변화를 흡수한다.
+// 질의와 문장의 관련도. 형태소 분석기 없이 한국어 어미·조사 변화를 흡수한다:
+// 1) 어절 일치(접두 일치 허용: '게임' ↔ '게임하기로'), 2) 2-gram dice, 3) 일치 비율에 비례하는 보정.
 export function relevance(query, text) {
   if (typeof query !== 'string' || typeof text !== 'string') throw new TypeError('검색어와 본문은 문자열이어야 합니다.');
   const trimmed = query.trim();
   if (!trimmed) throw new TypeError('검색어를 입력해 주세요.');
   if (trimmed.length > QUERY_MAX_LENGTH) throw new TypeError(`검색어는 ${QUERY_MAX_LENGTH}자 이하여야 합니다.`);
   const queryWords = new Set(words(trimmed));
-  const textWords = new Set(words(text));
+  const textWords = [...new Set(words(text))];
+  const matched = new Set();
+  for (const word of queryWords) {
+    if (FUNCTION_WORDS.has(word)) continue;
+    if (textWords.includes(word)) { matched.add(word); continue; }
+    // 어미·파생형은 접두로 흡수한다(2자 이상 겹칠 때만).
+    if (word.length >= 2 && textWords.some(other => other.length >= 2 && (other.startsWith(word) || word.startsWith(other)))) matched.add(word);
+  }
   const queryGrams = grams(trimmed);
   const textGrams = grams(text);
-  const wordScore = queryWords.size ? dice(queryWords, textWords) : 0;
+  const wordScore = queryWords.size ? matched.size / queryWords.size : 0;
   const gramScore = queryGrams.size ? dice(queryGrams, textGrams) : 0;
-  // 정확히 같은 어절이 있으면 그 자체로 관련성이 있다 (짧은 문장 보정).
-  let exact = 0;
-  for (const word of queryWords) if (textWords.has(word)) exact = Math.max(exact, .6);
-  return Math.max(wordScore * .8 + gramScore * .2, exact);
+  // 일치하는 어절이 많을수록 강하다. 한 단어만 겹치는 흔한 단어(예: '하루')로 상위에 오르지 않게 한다.
+  const ratio = queryWords.size ? matched.size / queryWords.size : 0;
+  const exact = matched.size ? .35 + .45 * ratio : 0;
+  return Math.max(wordScore * .7 + gramScore * .3, exact);
 }
 
 // 관리 UI용 검색: 사용 중지·만료된 기억도 숨기지 않고 관련성으로만 좁힌다.
@@ -47,10 +58,14 @@ export function selectMemories(memories, { roomId, query, now = Date.now(), limi
   const scoped = memories.filter(memory => memory && memory.roomId === roomId && memory.enabled !== false &&
     (memory.expiresAt === null || memory.expiresAt === undefined || memory.expiresAt > now));
   const scored = scoped.map(memory => ({ memory, score: query ? relevance(query, memory.text) : 1 }));
+  // 상대 하한: 최상위 기억과 견줄 만한(80% 이상) 항목만 넣는다. 흔한 단어 하나가 겹치는 무관한 기억이
+  // 예산을 차지하고 프롬프트를 흐리는 것을 막는다.
+  const best = scored.reduce((max, entry) => Math.max(max, entry.score), 0);
+  const floor = query ? Math.max(MIN_SCORE, best * .8) : 0;
   const selected = [];
   let used = 0;
   for (const entry of scored.sort((a, b) => b.score - a.score || (b.memory.updatedAt ?? 0) - (a.memory.updatedAt ?? 0))) {
-    if (query && entry.score < MIN_SCORE) continue;
+    if (query && entry.score < floor) continue;
     if (selected.length >= limit) break;
     if (used + entry.memory.text.length > charBudget) continue;
     selected.push(entry.memory);
