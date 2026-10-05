@@ -255,25 +255,27 @@ try {
   assert.match(await rowValue('대화 저장소 사용량'), /(B|KB|MB|GB)|확인할 수 없습니다/);
   assert.match(await rowValue('브라우저 보존 상태'), /보존 허용됨|보존 미허용|확인할 수 없습니다/);
   await aiPage.getByRole('button', { name: '대화 저장소 보존 요청' }).click();
-  // 요청 직후 진행 중임을 보여 줘야 한다(브라우저가 사용자에게 물어보는 동안 응답이 없다).
-  await aiPage.waitForFunction(() => {
+  // 결과는 엔진에 따라 즉시 오거나(Chromium·WebKit), 브라우저 확인을 기다린다(Firefox 프롬프트).
+  // 상태 행만 본다: 패널 전체 텍스트에는 '지원하지 않습니다' 같은 다른 문구도 있다.
+  const statusValue = () => aiPage.evaluate(() => {
     const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes('실행 상태'));
-    return /저장소 보존을 요청했습니다/.test(row?.querySelector('.ios-value')?.textContent ?? '');
-  }, null, { timeout: 30_000 });
-  // 결과는 엔진에 따라 늦거나(사용자 확인 대기) 즉시 온다: 짧게 기다리고 대기 중이면 그대로 기록한다.
+    return row?.querySelector('.ios-value')?.textContent ?? '';
+  });
   let persistResolved = true;
   try {
     await aiPage.waitForFunction(() => {
       const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes('실행 상태'));
       return /보존을 허용했|보존을 허용하지 않았|지원하지 않습니다/.test(row?.querySelector('.ios-value')?.textContent ?? '');
-    }, null, { timeout: 10_000 });
+    }, null, { timeout: 12_000 });
   } catch { persistResolved = false; }
   if (persistResolved) {
-    assert.match(await rowValue('실행 상태'), /보존을 허용했|보존을 허용하지 않았|지원하지 않습니다/);
+    assert.match(await statusValue(), /보존을 허용했|보존을 허용하지 않았|지원하지 않습니다/);
     assert.match(await rowValue('브라우저 보존 상태'), /보존 허용됨|보존 미허용|확인할 수 없습니다/);
   } else {
+    // 사용자 확인을 기다리는 동안: 진행 중 표시와 버튼 잠금이 보여야 한다.
+    assert.match(await statusValue(), /저장소 보존을 요청했습니다/);
     assert.equal(await aiPage.getByRole('button', { name: '대화 저장소 보존 요청' }).isDisabled(), true, '보존 요청 대기 중에는 버튼이 잠긴다');
-    console.log(`[storage] ${engineName}: 보존 요청이 브라우저 확인 대기 중(엔진별 프롬프트) — 결과 표시는 생략`);
+    console.log(`[storage] ${engineName}: 보존 요청이 브라우저 확인 대기 중(엔진별 프롬프트) — 진행 중 표시·버튼 잠금 확인`);
   }
 
   // 모모톡으로 이동해 기억을 하나 만들고 메시지를 보낸다.
@@ -309,6 +311,13 @@ try {
     ['user', '오늘 커피 마실래?'], ['assistant', '가짜 답변이 도착했어요'], ['user', '내일도 커피 마실래?'],
   ], '완료된 왕복이 문맥으로 전달된다');
   assert.deepEqual(captured[1].memories.map(memory => memory.text), ['선생님은 커피를 좋아해'], '질문과 관련된 기억만 전달된다');
+  // 모델이 말한 내용은 자동으로 기억이 되지 않는다: 실제 답변 뒤에도 사용자가 저장한 기억만 남는다.
+  await aiPage.locator('#momo-profile-open').click();
+  await aiPage.waitForFunction(() => document.querySelectorAll('#momo-memory-list .momo-memory-row').length === 1);
+  assert.deepEqual(await aiPage.$$eval('#momo-memory-list .momo-memory-text', nodes => nodes.map(node => node.textContent)),
+    ['선생님은 커피를 좋아해'], '생성된 답변은 기억으로 저장되지 않는다');
+  await aiPage.locator('#momo-profile-close').click();
+
   // 개발자 도구가 마지막 조립 결과(개수·문자 수·선택된 참고 자료)를 보여 준다.
   await aiPage.locator('#home-indicator').click();
   await aiPage.locator('[data-app="settings"]').click();
