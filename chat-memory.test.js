@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MEMORY_LIMIT, MESSAGE_LIMIT, filterMemories, memoryDraftFromMessage, relevance, searchMessages, selectMemories } from './chat-memory.js';
+import { MEMORY_LIMIT, MESSAGE_LIMIT, filterMemories, memoryDraftFromMessage, relevance, searchMessages, selectExcerpts, selectMemories } from './chat-memory.js';
 
 const memory = (roomId, text, overrides = {}) => ({ id: `${roomId}-${text}`, roomId, text, enabled: true, expiresAt: null,
   createdAt: 1, updatedAt: 1, sourceMessageId: null, sourceText: null, ...overrides });
@@ -116,4 +116,19 @@ test('natural phrasings retrieve the saved memory from distractors', () => {
       assert.ok(chosen.length <= 2, `"${question}" → ${chosen.join(' | ')}`);
     }
   }
+});
+
+test('excerpt selection drops the current question and window messages, and honours the char budget', () => {
+  const hits = [
+    { message: { id: 'old', text: '예전에 했던 약속 이야기' } },
+    { message: { id: 'window', text: '방금 나눈 대화' } },
+    { message: { id: 'now', text: '현재 질문' } },
+    { message: { id: 'long', text: '가'.repeat(600) } },
+  ];
+  const chosen = selectExcerpts(hits, { currentId: 'now', recentIds: ['window'], itemChars: 500, maxChars: 800 });
+  assert.deepEqual(chosen.map(entry => entry.id), ['old', 'long']);
+  assert.equal(chosen[1].text.length, 500);
+  const tinyBudget = selectExcerpts(hits, { currentId: 'now', recentIds: ['window'], itemChars: 500, maxChars: 10 });
+  assert.deepEqual(tinyBudget, []);
+  assert.throws(() => selectExcerpts('nope'), /배열/);
 });

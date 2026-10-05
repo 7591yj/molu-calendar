@@ -74,6 +74,25 @@ export function selectMemories(memories, { roomId, query, now = Date.now(), limi
   return selected;
 }
 
+// 발췌 선별: 검색 결과에서 최근 대화(창)에 이미 들어간 메시지와 현재 질문을 빼고, 길이를 자른다.
+// 창에 있는 내용을 발췌로 또 넣으면 예산만 쓰고 같은 말이 두 번 들어간다.
+export function selectExcerpts(hits, { currentId = null, recentIds = [], itemChars = 500, maxChars = 800 } = {}) {
+  if (!Array.isArray(hits)) throw new TypeError('검색 결과가 배열이 아닙니다.');
+  const seen = new Set([currentId, ...recentIds].filter(Boolean));
+  const chosen = [];
+  let used = 0;
+  for (const hit of hits) {
+    const message = hit?.message ?? hit;
+    if (!message || typeof message.text !== 'string' || seen.has(message.id)) continue;
+    const text = message.text.slice(0, itemChars).trim();
+    if (!text || used + text.length > maxChars) continue;
+    chosen.push({ id: message.id, text });
+    used += text.length;
+    seen.add(message.id);
+  }
+  return chosen;
+}
+
 // 원문 검색: 화면에 읽어온 페이지 안에서만 동작한다. 전체 기록을 메모리에 올리지 않는다.
 export function searchMessages(rows, { query, from = null, to = null, limit = MESSAGE_LIMIT } = {}) {
   if (!Array.isArray(rows)) throw new TypeError('메시지 목록이 배열이 아닙니다.');

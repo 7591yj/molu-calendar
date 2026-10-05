@@ -2,12 +2,12 @@ import {
   TIME_ZONE, CATEGORIES, STATUSES, MAX_BYTES, dateKey, addDays, shiftMonth, monthDays, displayDays,
   span, overlaps, clockLabel, timeLabel, rangeLabel, parseBundle, mergeEvents, compareEvents, featuredEvents, bannerEvents, remainingLabel, SERVERS, eventServers, LANGS, FALLBACK_LANG, countryLanguage, eventImage, eventImageCandidates, segments, timeFrac, assignLanes,
 } from './calendar.js';
-import { momoTopicsFor, momoReply, momoPromptPlan, momoCalendarQuery, momoSupportsAI, PROMPT_CHAR_BUDGET } from './momotalk.js';
+import { momoTopicsFor, momoReply, momoPromptPlan, momoCalendarQuery, momoSupportsAI, PROMPT_CHAR_BUDGET, MOMO_HISTORY_TURNS } from './momotalk.js';
 import { localAISession as aiSession } from './local-ai-session.js';
 import { errorWithCode } from './local-ai.js';
 import { localAISettings } from './local-ai-settings.js';
 import { ChatTranscript } from './chat-transcript.js';
-import { filterMemories, memoryDraftFromMessage, selectMemories, MEMORY_LIMIT, MEMORY_CHAR_BUDGET } from './chat-memory.js';
+import { filterMemories, memoryDraftFromMessage, selectExcerpts, selectMemories, MEMORY_LIMIT, MEMORY_CHAR_BUDGET } from './chat-memory.js';
 import { EXCERPT_LIMITS, promptCharsFor } from './persona.js';
 import { CHAT_DB_NAME } from './chat-store.js';
 import { cropSettings, cropRegion, cropImageStyle, clampCropScale, clampCropCenter, moveCropCenter, resizeCrop, withCrop } from './banner-crop.js';
@@ -1622,10 +1622,11 @@ async function momoModelInput(roomId, text, currentMessageId) {
   } catch { memories = []; }
   let excerpts = [];
   try {
-    const hits = await momo.searchRoom(roomId, { query: text, limit: EXCERPT_LIMITS.items, extraPages: 2 });
-    const recent = new Set(momoLog(roomId).slice(-4).map(entry => entry.id));
-    excerpts = hits.filter(hit => hit.message.id !== currentMessageId && !recent.has(hit.message.id))
-      .map(hit => ({ id: hit.message.id, text: hit.message.text.slice(0, EXCERPT_LIMITS.itemChars) }));
+    const hits = await momo.searchRoom(roomId, { query: text, limit: EXCERPT_LIMITS.items + MOMO_HISTORY_TURNS * 2, extraPages: 2 });
+    // 창에 이미 들어간 최근 메시지는 발췌에서 뺀다(같은 말이 두 번 들어가는 것을 막는다).
+    const recent = momoLog(roomId).slice(-(MOMO_HISTORY_TURNS * 2 + 1)).map(entry => entry.id);
+    excerpts = selectExcerpts(hits, { currentId: currentMessageId, recentIds: recent,
+      itemChars: EXCERPT_LIMITS.itemChars, maxChars: EXCERPT_LIMITS.chars });
   } catch { excerpts = []; }
   const plan = momoPromptPlan({ history: momoLog(roomId).filter(entry => entry.id !== currentMessageId), text,
     fixedChars: fixed.system + fixed.examples, memories, excerpts });
