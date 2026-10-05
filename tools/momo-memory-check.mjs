@@ -247,6 +247,35 @@ try {
   await aiPage.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
   await aiPage.getByRole('button', { name: '다운로드·로드', exact: true }).click();
   await aiPage.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''), null, { timeout: 30000 });
+  // 대화 저장소 섹션: 사용량 추정과 보존 요청이 실제 API 결과를 표시한다.
+  const rowValue = label => aiPage.evaluate(text => {
+    const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes(text));
+    return row?.querySelector('.ios-value')?.textContent ?? '';
+  }, label);
+  assert.match(await rowValue('대화 저장소 사용량'), /(B|KB|MB|GB)|확인할 수 없습니다/);
+  assert.match(await rowValue('브라우저 보존 상태'), /보존 허용됨|보존 미허용|확인할 수 없습니다/);
+  await aiPage.getByRole('button', { name: '대화 저장소 보존 요청' }).click();
+  // 요청 직후 진행 중임을 보여 줘야 한다(브라우저가 사용자에게 물어보는 동안 응답이 없다).
+  await aiPage.waitForFunction(() => {
+    const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes('실행 상태'));
+    return /저장소 보존을 요청했습니다/.test(row?.querySelector('.ios-value')?.textContent ?? '');
+  }, null, { timeout: 30_000 });
+  // 결과는 엔진에 따라 늦거나(사용자 확인 대기) 즉시 온다: 짧게 기다리고 대기 중이면 그대로 기록한다.
+  let persistResolved = true;
+  try {
+    await aiPage.waitForFunction(() => {
+      const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes('실행 상태'));
+      return /보존을 허용했|보존을 허용하지 않았|지원하지 않습니다/.test(row?.querySelector('.ios-value')?.textContent ?? '');
+    }, null, { timeout: 10_000 });
+  } catch { persistResolved = false; }
+  if (persistResolved) {
+    assert.match(await rowValue('실행 상태'), /보존을 허용했|보존을 허용하지 않았|지원하지 않습니다/);
+    assert.match(await rowValue('브라우저 보존 상태'), /보존 허용됨|보존 미허용|확인할 수 없습니다/);
+  } else {
+    assert.equal(await aiPage.getByRole('button', { name: '대화 저장소 보존 요청' }).isDisabled(), true, '보존 요청 대기 중에는 버튼이 잠긴다');
+    console.log(`[storage] ${engineName}: 보존 요청이 브라우저 확인 대기 중(엔진별 프롬프트) — 결과 표시는 생략`);
+  }
+
   // 모모톡으로 이동해 기억을 하나 만들고 메시지를 보낸다.
   await aiPage.locator('#home-indicator').click();
   await aiPage.locator('[data-app="momo-list"]').click();

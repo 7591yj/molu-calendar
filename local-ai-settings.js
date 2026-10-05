@@ -1,6 +1,14 @@
 import { MODELS, LEGACY_GEMMA2, DEFAULT_MODEL_ID, CHARACTERS, characterById, ENGINE_NAMES, ENGINE_GUIDANCE, BENCHMARK, MODEL_OVERHEAD_BYTES, modelCardURL, modelById, gb, inspectEnvironment, benchmarkModels, recommendModel, summarizeSamples, describeError, modelConsentText } from './local-ai.js';
 import { localAISession as session } from './local-ai-session.js';
 const LABELS = { comfortable: '쾌적', usable: '사용 가능 · 첫 응답 느림', slow: '응답 기준 미달', invalid: '측정 불충분', unsupported: '실행 환경 비호환', error: '실행 오류', cancelled: '측정 취소' };
+// 대화 DB는 수 MB 단위일 수 있으므로 GB 고정 표기 대신 단위를 바꾼다.
+const bytes = value => {
+  if (!Number.isFinite(value)) return '확인 불가';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${(value / 1024 ** 3).toFixed(2)} GB`;
+};
 let panel;
 
 export function localAISettings({ row, section, element, toggle, choose = () => {}, page = (title, build) => build(), momo = null }) {
@@ -197,6 +205,7 @@ export function localAISettings({ row, section, element, toggle, choose = () => 
     if (!confirm('모모톡 대화 기록을 모두 지울까요? 첫 인사만 남고 설정·측정 결과·모델 다운로드는 유지됩니다.')) return;
     await momo.deleteAll();
     state.status = '모모톡 대화 기록을 삭제했습니다.';
+    await refreshTranscriptStorage();
     render();
   }), true);
   const exportMomoButton = button('모모톡 기록 내보내기 (JSON)', () => run(async () => {
@@ -219,10 +228,48 @@ export function localAISettings({ row, section, element, toggle, choose = () => 
       const raw = await file.text();
       const result = await momo.importBundle(raw);
       if (result) state.status = `백업에서 방 ${result.rooms}개·메시지 ${result.messages}건을 가져왔습니다.`;
+      await refreshTranscriptStorage();
       render();
     });
   });
   const importMomoButton = button('모모톡 기록 가져오기 (JSON)', () => importMomoFile.click());
+  // ── 대화 저장소: 사용량 추정·보존 요청 (P5) ──
+  const storageUsageRow = row('대화 저장소 사용량 (추정)', { value: '확인 중' });
+  const storagePersistRow = row('브라우저 보존 상태', { value: '확인 중' });
+  const refreshTranscriptStorage = async () => {
+    let estimate = null;
+    try { estimate = await navigator.storage?.estimate?.(); } catch { /* 선택 API */ }
+    setValue(storageUsageRow, estimate
+      ? `${bytes(estimate.usage)} / ${bytes(estimate.quota)} · origin 전체 추정`
+      : '이 브라우저에서 확인할 수 없습니다.');
+    let persisted = null;
+    try { persisted = await navigator.storage?.persisted?.(); } catch { /* 선택 API */ }
+    setValue(storagePersistRow, persisted === null ? '확인할 수 없습니다.' : persisted ? '보존 허용됨' : '보존 미허용');
+  };
+  const persistButton = button('대화 저장소 보존 요청', () => {
+    if (state.persisting) return;
+    // persist()는 브라우저가 사용자에게 물어볼 수 있고, 그동안 응답이 없다. 진행 중임을 먼저 보여 준다.
+    void (async () => {
+      state.persisting = true;
+      state.status = '저장소 보존을 요청했습니다. 브라우저가 허용 여부를 물어볼 수 있습니다.';
+      render();
+      try {
+        if (typeof navigator.storage?.persist !== 'function') {
+          state.status = '이 브라우저는 저장소 보존 요청을 지원하지 않습니다. JSON 내보내기로 백업해 주세요.';
+          return;
+        }
+        let granted = false;
+        try { granted = await navigator.storage.persist(); } catch { granted = false; }
+        state.status = granted
+          ? '브라우저가 보존을 허용했습니다. 그래도 사이트 데이터 삭제·비공개 모드 종료로 지워질 수 있으니 JSON 백업을 유지하세요.'
+          : '브라우저가 보존을 허용하지 않았습니다(정책·사용자 설정에 따름). JSON 내보내기로 백업해 주세요.';
+      } finally {
+        state.persisting = false;
+        await refreshTranscriptStorage();
+        render();
+      }
+    })();
+  });
   const clearAppDataButton = button('일정·북마크 등 앱 데이터 삭제', () => {
     if (!confirm('일정·북마크·크롭·화면 등 앱 데이터를 지울까요? AI 설정·측정 결과·모델 다운로드는 유지됩니다.')) return;
     try {
@@ -272,8 +319,11 @@ export function localAISettings({ row, section, element, toggle, choose = () => 
     benchmarkResultSection,
     section([chatEntryRow()], { header: '테스트 대화', footer: '모델·캐릭터를 고른 뒤 별도 화면에서 대화합니다.' }),
     section([exportMomoButton, importMomoButton, importMomoFile, clearMomoButton, clearAppDataButton], { header: '데이터 정리', footer: '각 항목은 독립적으로 삭제됩니다. 모모톡 백업은 방·메시지 원문과 형식·중복·순서를 검증한 뒤에만 가져오며, 기록이 남아 있으면 자동으로 덮어쓰지 않습니다. 모델 가중치는 위 모델 관리에서 지우세요. 전체 초기화는 데이터 탭에서 할 수 있습니다.' }),
+    section([storageUsageRow, storagePersistRow, persistButton], { header: '대화 저장소', footer: '사용량은 이 브라우저 origin 전체의 추정치이며 대화 DB만의 크기가 아닙니다. 보존 허용은 요청일 뿐이고 사용자가 사이트 데이터를 지우면 함께 삭제됩니다. 비공개 모드에서는 창을 닫을 때 사라질 수 있고, 개발 서버 포트가 바뀌면 다른 origin이라 이전 기록이 보이지 않습니다. 백업은 위 내보내기를 사용하세요.' }),
     section([], { footer: '최초 다운로드는 Hugging Face와 모델 라이브러리 호스팅 서버에 접속합니다(IP 등 접속 정보 전달). 대화·GPU 정보는 전송하지 않으며, 실패해도 클라우드 AI로 전환하지 않습니다. 탭을 숨기면 작업을 취소하고 실행 중 모델을 해제합니다. 캐시는 브라우저 정책에 의해 삭제될 수 있습니다.' }),
   );
+
+  void refreshTranscriptStorage();
 
   function consent(candidates) {
     return confirm(modelConsentText(candidates, state.env?.storage));
@@ -401,6 +451,7 @@ export function localAISettings({ row, section, element, toggle, choose = () => 
     setValue(cachedSizeRow, cacheBytes(state.modelId) === undefined ? '확인 불가' : gb(cacheBytes(state.modelId)));
     setValue(runtimeCacheRow, state.cache?.runtimeBytes === undefined ? '확인 불가' : gb(state.cache.runtimeBytes));
     for (const control of controls) control.disabled = locked;
+    persistButton.disabled = locked || state.persisting === true;
     loadButton.disabled = locked || !runtime().supported;
     benchButton.disabled = locked || !runtime().supported;
     unloadButton.disabled ||= !session.loaded;
