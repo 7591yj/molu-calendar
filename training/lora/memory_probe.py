@@ -10,13 +10,9 @@ training/lora/build_memory_probes.mjs가 만든 prompts.jsonl에 들어 있다.
 """
 import argparse
 import json
-import time
 from pathlib import Path
 
-# 앱이 Worker에 넘기는 샘플링 설정과 맞춘다(local-ai-worker.js).
-SEED = 42
-TEMPERATURE = 0.6
-TOP_P = 0.9
+from probe_common import SEED, TEMPERATURE, TOP_P, filter_prompts, generate, load_probe_model, read_prompts
 
 
 def score(row, text):
@@ -40,23 +36,8 @@ def main():
     parser.add_argument('--max-new-tokens', type=int, default=128)
     args = parser.parse_args()
 
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
-
-    rows = [json.loads(line) for line in args.prompts.read_text(encoding='utf-8').splitlines() if line.strip()]
-    if args.filter:
-        rows = [row for row in rows if args.filter in row['id']]
-    if args.limit:
-        rows = rows[:args.limit]
-    if not rows:
-        raise SystemExit('조건에 맞는 프롬프트가 없습니다.')
-    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=args.revision)
-    model = AutoModelForCausalLM.from_pretrained(args.model, revision=args.revision, dtype=torch.bfloat16)
-    if args.adapter:
-        from peft import PeftModel
-        model = PeftModel.from_pretrained(model, args.adapter)
-    model = model.to(args.device).eval()
-    model.config.use_cache = True
+    rows = filter_prompts(read_prompts(args.prompts), args.filter, args.limit)
+    model, tokenizer = load_probe_model(args.model, args.revision, args.adapter, args.device)
 
     out_dir = args.out or args.prompts.parent
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -65,21 +46,12 @@ def main():
     totals = {}
     with responses.open('w', encoding='utf-8') as handle:
         for index, row in enumerate(rows):
-            ids = tokenizer.apply_chat_template(row['messages'], tokenize=True, add_generation_prompt=True, enable_thinking=False)
-            inputs = torch.tensor([ids], device=args.device)
-            set_seed(SEED)
-            started = time.monotonic()
-            with torch.inference_mode():
-                generated = model.generate(
-                    input_ids=inputs, attention_mask=torch.ones_like(inputs), max_new_tokens=args.max_new_tokens,
-                    do_sample=True, temperature=TEMPERATURE, top_p=TOP_P, pad_token_id=tokenizer.pad_token_id,
-                    eos_token_id=tokenizer.eos_token_id)[0, len(ids):].tolist()
-            text = tokenizer.decode(generated, skip_special_tokens=True).strip()
+            text, prompt_tokens, seconds, hit_limit = generate(model, tokenizer, row['messages'], args.device, args.max_new_tokens)
             hit, leaked = score(row, text)
             record = {'id': row['id'], 'characterId': row['characterId'], 'variant': row['variant'], 'question': row['question'],
-                      'reference': row['reference'], 'promptChars': row['promptChars'], 'promptTokens': len(ids),
-                      'response': text, 'hit': hit, 'leaked': leaked, 'hit_token_limit': tokenizer.eos_token_id not in generated,
-                      'seconds': round(time.monotonic() - started, 2), 'adapter': str(args.adapter) if args.adapter else None}
+                      'reference': row['reference'], 'promptChars': row['promptChars'], 'promptTokens': prompt_tokens,
+                      'response': text, 'hit': hit, 'leaked': leaked, 'hit_token_limit': hit_limit,
+                      'seconds': seconds, 'adapter': str(args.adapter) if args.adapter else None}
             handle.write(json.dumps(record, ensure_ascii=False) + '\n')
             handle.flush()
             bucket = totals.setdefault(row['variant'], {'n': 0, 'hit': 0, 'leak': 0, 'truncated': 0, 'seconds': 0.0})
@@ -89,7 +61,7 @@ def main():
             bucket['truncated'] += int(record['hit_token_limit'])
             bucket['seconds'] += record['seconds']
             print(f"[{index + 1}/{len(rows)}] {row['id']} {'hit' if hit else 'leak' if leaked else 'miss'} "
-                  f"({record['seconds']}s, {len(ids)} tokens)", flush=True)
+                  f"({record['seconds']}s, {prompt_tokens} tokens)", flush=True)
 
     lines = ['# 기억 프로브 결과', '',
              f'- 모델: `{args.model}` @ `{args.revision}`' + (f' + 어댑터 `{args.adapter}`' if args.adapter else ''),

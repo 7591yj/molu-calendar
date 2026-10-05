@@ -2,7 +2,7 @@
   "version": 1,
   "source": "https://github.com/feilongproject/ba-data/blob/JP/DB/AcademyMessangerExcelTable.json",
   "table_sha256": "621641ecab98788f786559b1a19976c9eb5ab74a4f1c5aabb092eb93b9bb0cb0",
-  "persona_sha256": "d4665567daee31106ee612d53427ed46d57d473defc6c47a3e61ded1b63eff29",
+  "persona_sha256": "845162049330bd1f2057ff6054dbcf93c3c2a5d789928103989fea1ff890b463",
   "seed": 42,
   "characters": {
     "Yuuka": {
@@ -72,7 +72,7 @@
     }
   },
   "files": {
-    "cards.json": "f50d162c4dbf8cf2faa2dbc9f75c158591a8914b78b69204b61ef23de2cf015d",
+    "cards.json": "f39361c347cf5f978c5112d5ab914fdc7c3682e4722deeae0e012a7d3fe2021a",
     "Yuuka.train.jsonl": "02c39ebd4f412262cec755bbdeaf643d906d0301a34c88e076a864e633b2cf0e",
     "Yuuka.eval.jsonl": "c6163414197f7f868d057bfbbba3aade75052cc001a54215f6d2c79abfa7deec",
     "CH0069.train.jsonl": "0f5fd9f722b6f008e637c6efdc802df2334f6863995636a88db310e108c4536f",

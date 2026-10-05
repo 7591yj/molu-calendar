@@ -16,6 +16,22 @@ export function affiliationBlockFor(persona) {
   return `[소속]\n${persona.affiliation}\n${lore}`;
 }
 
+// 캐릭터별 답장 리듬(문장 수)을 예시에서 파생한다. 지침 블록으로 넣는 실험은 측정상 이득이 없어
+// 프롬프트에는 넣지 않고, 말투 프로브(training/lora/voice_probe.py)의 판정 기준으로만 쓴다.
+export function replyLengthRange(id) {
+  const persona = personaById(id);
+  if (!persona) return null;
+  const counts = persona.examples.flat().filter(message => message.role === 'assistant')
+    .map(message => (message.content.match(/[.!?]/g) ?? []).length)
+    .filter(count => count > 0)
+    .sort((a, b) => a - b);
+  if (!counts.length) return null;
+  const median = counts[Math.floor(counts.length / 2)];
+  if (median <= 2) return [1, 3];
+  if (median <= 3) return [2, 4];
+  return [2, 5];
+}
+
 export function systemPromptFor(id) {
   const persona = personaById(id);
   if (!persona) return null;

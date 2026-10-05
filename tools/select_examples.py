@@ -27,6 +27,9 @@ import persona_common
 
 DECOR = re.compile(r'[\u2665\u2661\u266a\u266b\u2606\u2605\u2764\ufe0f\u2727\u2728]')
 SENTENCE = re.compile(r'[.!?…]')
+# 말줄임표(…)·쉼표는 호흡이지 문장이 아니다. 앱 규칙(2~4문장)의 "문장"은 종결 부호로 센다.
+SENTENCE_END = re.compile(r'[.!?]')
+RULE_SENTENCES = (2, 4)
 KOREAN = re.compile(r'[가-힣]')
 CONNECTIVE = ('아니', '근데', '그치', '어,', '음,', '그리고', '하지만', '그럼', '저기')
 # 게임 테이블에 자모가 깨진 대사가 섞여 있다: "나ㄹ 응응응!!!!!", "조그 ㅁ ㅡ냥 선생님".
@@ -52,6 +55,12 @@ def score(sensei, student):
         value += 2
     if len(SENTENCE.findall(student)) >= 2:
         value += 4                       # 여러 문장 = 규칙과 같은 모양
+    # 앱 규칙은 2~4문장이다. 규칙을 벗어난 긴 답을 예시로 쓰면 모델이 그 길이를 그대로 따라 한다.
+    endings = len(SENTENCE_END.findall(student))
+    if RULE_SENTENCES[0] <= endings <= RULE_SENTENCES[1]:
+        value += 5
+    elif endings > RULE_SENTENCES[1]:
+        value -= 3
     if student.endswith(('.', '!', '?', '…')):
         value += 3                       # 끝까지 말한 답. 마지막 앵커로 적합하다
     if 25 <= len(student) <= 90:
