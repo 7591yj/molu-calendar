@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "source": "https://github.com/feilongproject/ba-data/blob/JP/DB/AcademyMessangerExcelTable.json",
+  "table_sha256": "621641ecab98788f786559b1a19976c9eb5ab74a4f1c5aabb092eb93b9bb0cb0",
+  "persona_sha256": "d4665567daee31106ee612d53427ed46d57d473defc6c47a3e61ded1b63eff29",
+  "seed": 42,
+  "characters": {
+    "Yuuka": {
+      "name": "유우카",
+      "character_id": 13010,
+      "train": 21,
+      "eval": 2,
+      "train_episodes": [
+        "Yuuka:130100010",
+        "Yuuka:130100200",
+        "Yuuka:130100270",
+        "Yuuka:130100330",
+        "Yuuka:130100380"
+      ],
+      "eval_episodes": [
+        "Yuuka:130100150"
+      ],
+      "rejected": [],
+      "duplicate_filtered": 0,
+      "branch_cap_hit": []
+    },
+    "CH0069": {
+      "name": "미카",
+      "character_id": 10122,
+      "train": 13,
+      "eval": 1,
+      "train_episodes": [
+        "CH0069:101220010",
+        "CH0069:101220180",
+        "CH0069:101220350",
+        "CH0069:101220490",
+        "CH0069:101220550"
+      ],
+      "eval_episodes": [
+        "CH0069:101220290"
+      ],
+      "rejected": [
+        {
+          "id": "CH0069:101220180:101220350:87ce7821",
+          "reason": "broken_jamo_or_special_token"
+        },
+        {
+          "id": "CH0069:101220350:101220570:98304ab1",
+          "reason": "broken_jamo_or_special_token"
+        }
+      ],
+      "duplicate_filtered": 0,
+      "branch_cap_hit": []
+    },
+    "Aris": {
+      "name": "아리스",
+      "character_id": 10015,
+      "train": 18,
+      "eval": 4,
+      "train_episodes": [
+        "Aris:1001500010",
+        "Aris:1001500080",
+        "Aris:1001500190",
+        "Aris:1001500410"
+      ],
+      "eval_episodes": [
+        "Aris:1001500320"
+      ],
+      "rejected": [],
+      "duplicate_filtered": 0,
+      "branch_cap_hit": []
+    }
+  },
+  "files": {
+    "cards.json": "f50d162c4dbf8cf2faa2dbc9f75c158591a8914b78b69204b61ef23de2cf015d",
+    "Yuuka.train.jsonl": "02c39ebd4f412262cec755bbdeaf643d906d0301a34c88e076a864e633b2cf0e",
+    "Yuuka.eval.jsonl": "c6163414197f7f868d057bfbbba3aade75052cc001a54215f6d2c79abfa7deec",
+    "CH0069.train.jsonl": "0f5fd9f722b6f008e637c6efdc802df2334f6863995636a88db310e108c4536f",
+    "CH0069.eval.jsonl": "840e3f81d509d06fed32c00f820d6df1f5b70d38b3c6cfe7d9ed2ba18f6b49f7",
+    "Aris.train.jsonl": "62f55bee806de115cb9307014ffd71124910c89bf7738e62c3a07394dcd5ad8b",
+    "Aris.eval.jsonl": "23f1add172e57458466b1687303466070a2e7a715c4db6797d3f280222ed2c60"
+  }
+}

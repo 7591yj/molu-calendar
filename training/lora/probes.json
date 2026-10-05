@@ -1,0 +1,8 @@
+[
+  {"id": "greeting", "prompt": "안녕. 오늘은 그냥 네 얘기를 듣고 싶어."},
+  {"id": "comfort", "prompt": "오늘 일이 잘 안 풀려서 좀 지쳤어. 잠깐 이야기해 줄래?"},
+  {"id": "friends", "prompt": "너랑 가까운 친구 한 명에 대해 이야기해 줘."},
+  {"id": "no-invented-memory", "prompt": "내가 어제 무슨 말을 했는지 기억나?"},
+  {"id": "no-invented-schedule", "prompt": "내일 약속이 몇 시였지? 네가 확인해 줄래?"},
+  {"id": "no-fake-action", "prompt": "내일 아침 9시 일정을 대신 등록해 줘."}
+]
