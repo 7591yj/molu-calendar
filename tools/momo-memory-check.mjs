@@ -414,6 +414,58 @@ try {
   assert.deepEqual(retryErrors, [], '재시도 경로 페이지 오류 없음');
   await retryContext.close();
 
+  // 저장 실패 경로: 메시지 저장이 실패하면 '저장됨'으로 보이지 않고, 배너에서 재시도해 실제로 저장된다.
+  const failContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  failContext.setDefaultTimeout(60_000);
+  const failPage = await failContext.newPage();
+  const failErrors = [];
+  failPage.on('pageerror', error => failErrors.push(error.message));
+  failPage.on('dialog', dialog => dialog.accept());
+  // 한 번만 시드한다: 앱이 저장한 화면 상태를 새로고침마다 덮어쓰면 안 된다.
+  await failPage.addInitScript(() => {
+    if (sessionStorage.getItem('momo-fail-seeded')) return;
+    sessionStorage.setItem('momo-fail-seeded', '1');
+    localStorage.setItem('molu.screen.v1', JSON.stringify({ screen: 'momo-list', room: null, tab: 'general' }));
+  });
+  await failPage.goto(base);
+  await failPage.waitForFunction(() => document.querySelectorAll('#momo-chats .chat-row').length >= 1);
+  await failPage.locator('[data-mpane="chat"]').click();
+  await failPage.locator('#momo-chats .chat-row', { hasText: '아로나' }).click();
+  await failPage.waitForFunction(() => document.querySelector('#app-momotalk').hidden === false);
+  await failPage.waitForFunction(() => document.querySelectorAll('#momo-messages .momo-row').length > 0);
+  const failRows = () => failPage.$$eval('#momo-messages .momo-row', rows => rows.filter(row => !row.querySelector('.momo-typing')).length);
+  const beforeFail = await failRows();
+  // 첫 messages 쓰기만 강제로 실패시킨다(쿼터/디스크 오류 모사). 원복 함수는 나중에 호출한다.
+  await failPage.evaluate(() => {
+    const store = IDBObjectStore.prototype;
+    const original = store.add;
+    window.__restoreStore = () => { store.add = original; };
+    store.add = function (...args) {
+      if (this.name === 'messages') { window.__restoreStore(); throw new DOMException('quota', 'QuotaExceededError'); }
+      return original.apply(this, args);
+    };
+  });
+  await failPage.locator('#momo-input').fill('저장 실패 시험');
+  await failPage.locator('#momo-form .momo-send').click();
+  await failPage.waitForFunction(() => document.querySelector('#momo-store-status').hidden === false, null, { timeout: 30_000 });
+  assert.match(await failPage.locator('#momo-store-text').textContent(), /저장하지 못했습니다/);
+  assert.equal(await failRows(), beforeFail + 1, '실패한 메시지도 화면에는 남는다');
+  assert.equal(await failPage.locator('#momo-messages .momo-row.unsaved').count(), 1, '저장 안 됨 표시');
+  assert.equal(await failPage.locator('#momo-input').isHidden(), true, '저장 실패 동안 새 전송을 막는다');
+  const listPreviewDuringFailure = await failPage.evaluate(() => document.querySelector('#momo-chats .chat-preview')?.textContent ?? '');
+  await failPage.locator('#momo-store-retry').click();
+  await failPage.waitForFunction(() => document.querySelector('#momo-store-status').hidden === true, null, { timeout: 30_000 });
+  assert.equal(await failPage.locator('#momo-messages .momo-row.unsaved').count(), 0, '재시도 뒤 저장 표시가 사라진다');
+  assert.equal(await failPage.locator('#momo-input').isHidden(), false, '재시도 뒤 입력이 다시 열린다');
+  await failPage.reload();
+  await failPage.waitForFunction(() => document.querySelector('#app-momotalk').hidden === false, null, { timeout: 30_000 });
+  await failPage.waitForFunction(() => document.querySelector('#momo-messages')?.textContent.includes('저장 실패 시험') === true, null, { timeout: 30_000 });
+  assert.equal((await failRows()) >= beforeFail + 1, true, '재시도한 메시지가 새로고침 뒤에도 남는다');
+  // 주입한 쿼터 오류는 IDB 이벤트 핸들러 안에서 던져져 브라우저가 uncaught로 보고한다: 테스트 산출물이므로 걸러낸다.
+  assert.deepEqual(failErrors.filter(message => !/quota/.test(message)), [], '저장 실패 경로에 주입 외 페이지 오류 없음');
+  void listPreviewDuringFailure;
+  await failContext.close();
+
   console.log(`momo memory check (${engineName}): ok`, JSON.stringify({ restored: restored.map(row => row.name), backupMessages: parsed.messages.length }));
 } finally {
   await browser?.close();
