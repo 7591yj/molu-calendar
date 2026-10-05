@@ -30,7 +30,14 @@ self.onmessage = async ({ data }) => {
 const report = { startedAt: new Date().toISOString(), messages: MESSAGES,
   legacy: JSON.stringify({
     [ROOM]: Array.from({ length: Math.ceil(MESSAGES * 0.8) }, (_, i) => ({ me: i % 2 === 0, text: `${i}번째 메시지`, time: '12:00' })),
-    [SECOND]: Array.from({ length: MESSAGES - Math.ceil(MESSAGES * 0.8) }, (_, i) => ({ me: i % 2 === 0, text: `${i}번째 다른 방`, time: '09:00' })),
+    // 최근 12건은 길게 만든다: 창(4왕복)이 예산에 맞춰 통째로 줄어드는지 확인한다.
+    [SECOND]: (() => {
+      const count = MESSAGES - Math.ceil(MESSAGES * 0.8);
+      return Array.from({ length: count }, (_, i) => ({
+        me: i % 2 === 0, time: '09:00',
+        text: i >= count - 12 ? `${i}번째 다른 방 ${'가'.repeat(400)}` : `${i}번째 다른 방`,
+      }));
+    })(),
   }) };
 const server = makeServer().listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -114,7 +121,8 @@ try {
   await page.waitForFunction(() => /규모 점검 답변/.test(document.querySelector('#momo-messages')?.textContent ?? ''), null, { timeout: 60_000 });
   assert.equal(captures.length, 1, '가짜 Worker가 한 번 요청을 받는다');
   report.prompt = captures[0];
-  assert.ok(report.prompt.messages <= 5, `프롬프트 메시지 ${report.prompt.messages}개`);
+  // 최근 왕복 창은 4라 이론상 최대 4×2 + 현재 질문 = 9개. 전체 기록이 들어가면 여기서 걸린다.
+  assert.ok(report.prompt.messages <= 9, `프롬프트 메시지 ${report.prompt.messages}개`);
   assert.ok(report.prompt.chars <= 4_000, `프롬프트 ${report.prompt.chars}자 — 예산 초과`);
   report.heapMB = await page.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
   report.errors = errors;

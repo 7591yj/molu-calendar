@@ -250,6 +250,8 @@ uv run --locked python voice_probe.py --adapter <path> --filter Yuuka   # 어댑
 | `echo` | 사용자 메시지를 거의 그대로 되받는지 |
 | `invented` | 카드에 없는 약속/기억을 단정하는지(일정·기억 질문) |
 
+맥락 창 프로브(최근 왕복 수 결정용): `node build_context_probes.mjs runs/context-probe/prompts.jsonl` + `uv run --locked python memory_probe.py --prompts runs/context-probe/prompts.jsonl --samples 3`. 사실을 3왕복 전에 말한 뒤 회상 질문을 던져 창 크기(2 vs 4왕복)와 기억 주입을 비교한다(결과: [RESULTS.md](RESULTS.md)).
+
 **앱 모델(Gemma 4 LiteRT)이 아니라 프롬프트 구조 검증이다.** 앱 품질 보장으로 확대 해석하지 않는다.
 
 측정으로 확인한 것(로컬 Qwen3-1.7B, 3표본 평균):

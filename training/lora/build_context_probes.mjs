@@ -1,0 +1,77 @@
+// 최근 왕복 창 평가: 사실을 3턴 전에 말했을 때 창 크기(2 vs 4왕복)와 기억 저장이 회상에 어떤 영향을 주는지 본다.
+// 앱과 같은 조립 코드(momoPromptPlan + selectMemories)를 쓰고, 실제 추론은 memory_probe.py가 한다.
+//   node training/lora/build_context_probes.mjs training/lora/runs/context-probe/prompts.jsonl
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { chatMessagesWithReferences, promptCharsFor } from '../../persona.js';
+import { MEMORY_CHAR_BUDGET, MEMORY_LIMIT, selectMemories } from '../../chat-memory.js';
+import { momoPromptPlan, PROMPT_CHAR_BUDGET } from '../../momotalk.js';
+
+// 사실은 일정이 아니라 개인 사실로 둔다: 일정은 모델이 지어내기 쉬워 회상 측정이 흐려진다.
+const CASES = [
+  {
+    characterId: 'Arona', fact: '선생님은 커피를 하루 두 잔 마셔', question: '나 커피 하루에 몇 잔 마신다고 했지?',
+    includes: ['두 잔', '2잔', '2컵', '두잔'],
+    filler: [['나 오늘 좀 피곤하네', '많이 피곤해 보이시면 제가 도와드릴게요!'], ['그냥 그런 날이야', '그런 날도 있는 거예요. 저는 옆에 있을게요!']],
+  },
+  {
+    characterId: 'Yuuka', fact: '선생님은 지출 기록을 수첩에 적어', question: '내가 지출 기록을 어디에 적는다고 했었지?',
+    includes: ['수첩'],
+    filler: [['회의가 길어졌어', '네. 다음부터는 시간을 미리 확인해 두세요.'], ['알겠어', '네, 그렇게 해 주세요.']],
+  },
+  {
+    characterId: 'Aris', fact: '우리는 밤에 같이 게임하기로 했어', question: '우리 게임 언제 하기로 했지?',
+    includes: ['밤'],
+    filler: [['오늘 뭐 했어?', '네! 아리스는 퀘스트를 진행했습니다!'], ['잘했어', '감사합니다! 아리스는 더 강해질 것입니다!']],
+  },
+];
+
+const NOW = 1_700_000_000_000;
+const ROWS = [];
+for (const testCase of CASES) {
+  const fixed = promptCharsFor(testCase.characterId);
+  // 대화 이력: [사실] → [채움1] → [채움2] → 질문. 각 항목은 앱의 화면 기록 형식({me, text})이다.
+  const history = [
+    { me: true, text: testCase.fact }, { me: false, text: '네, 기억해 둘게요.' },
+    ...testCase.filler.flatMap(([question, answer]) => [{ me: true, text: question }, { me: false, text: answer }]),
+    { me: true, text: testCase.question },
+  ];
+  const memory = { id: `mem-${testCase.characterId}`, roomId: testCase.characterId, text: testCase.fact,
+    enabled: true, expiresAt: null, createdAt: NOW, updatedAt: NOW, sourceMessageId: null, sourceText: null };
+  for (const [variant, rowsForSelection, questionText] of [
+    ['window2', [], testCase.question],
+    ['window4', [], testCase.question],
+    ['window2-memory', [memory], testCase.question],
+    ['window4-memory', [memory], testCase.question],
+  ]) {
+    const window = variant.startsWith('window4') ? 4 : 2;
+    const memories = selectMemories(rowsForSelection, { roomId: testCase.characterId, query: questionText, now: NOW,
+      limit: MEMORY_LIMIT, charBudget: MEMORY_CHAR_BUDGET }).map(entry => ({ id: entry.id, text: entry.text }));
+    const plan = momoPromptPlan({ history, text: questionText, fixedChars: fixed.system + fixed.examples, memories, excerpts: [], turns: window });
+    const messages = chatMessagesWithReferences(testCase.characterId, plan.messages, plan.memories, plan.excerpts);
+    const kept = plan.messages.filter(message => message.role === 'assistant').length;
+    const withMemory = memories.length > 0;
+    ROWS.push({
+      id: `${testCase.characterId}-${variant}`, characterId: testCase.characterId, variant,
+      window, expectedTurns: Math.min(window, 3),
+      memory: withMemory ? memory.text : null,
+      question: questionText, historyTurns: kept, promptChars: plan.promptChars, budget: PROMPT_CHAR_BUDGET,
+      messages: messages.map(message => ({ role: message.role, content: message.content })),
+      // 기억이 있거나 최근 창 안에 사실이 남아 있으면 회상이 정답이다. 창 밖 + 기억 없음이면 값을 지어내면 안 된다.
+      expect: withMemory || window === 4 ? { includes: testCase.includes, excludes: [] } : { includes: [], excludes: testCase.includes },
+    });
+  }
+}
+
+const output = process.argv[2] ?? 'runs/context-probe/prompts.jsonl';
+await mkdir(dirname(output), { recursive: true });
+await writeFile(output, ROWS.map(row => JSON.stringify(row)).join('\n') + '\n');
+// 조립 검증: 창 크기와 기억 주입이 의도대로인지, 예산을 넘지 않는지.
+for (const row of ROWS) {
+  const hasReference = row.messages.some(message => message.role === 'system' && message.content.includes('[참고 자료]'));
+  if (row.memory ? !hasReference : hasReference) throw new Error(`${row.id}: 참고 자료 주입이 기대와 다름`);
+  if (row.historyTurns !== row.expectedTurns) throw new Error(`${row.id}: 기대 왕복 ${row.expectedTurns}, 실제 ${row.historyTurns}`);
+  if (row.promptChars > row.budget) throw new Error(`${row.id}: 예산 초과`);
+}
+const windows = ROWS.reduce((map, row) => ({ ...map, [row.variant]: (map[row.variant] ?? 0) + 1 }), {});
+console.log(`맥락 창 프로브 ${ROWS.length}건 → ${output}`, JSON.stringify(windows));

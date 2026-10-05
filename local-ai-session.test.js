@@ -77,13 +77,16 @@ test('로컬 대화의 일정 조회는 명시적 문구만 처리하고 일상 
   assert.equal(momoCalendarQuery('모레 일정'), null);
 });
 
-test('모모톡 문맥은 최근 두 완료 왕복만 포함하고 실패·인사·자동 질문을 제외한다', () => {
+test('모모톡 문맥은 최근 완료 왕복만 포함하고 실패·인사·자동 질문을 제외한다', () => {
   const history = [{ me: false, text: '인사' }];
   for (const n of [1, 2, 3]) history.push({ me: true, text: `질문${n}` }, { me: false, text: `답${n}` }, { me: false, text: '다음 자동 질문' });
   history.push({ me: true, text: '취소된 질문', pending: true });
+  // 창은 4왕복이다: 3왕복 전 사실도 문맥에 남는다(맥락 창 프로브 근거).
   assert.deepEqual(momoPromptPlan({ history, text: '지금 질문', fixedChars: 0 }).messages, [
+    { role: 'user', content: '질문1' }, { role: 'assistant', content: '답1' },
     { role: 'user', content: '질문2' }, { role: 'assistant', content: '답2' },
-    { role: 'user', content: '질문3' }, { role: 'assistant', content: '답3' }, { role: 'user', content: '지금 질문' },
+    { role: 'user', content: '질문3' }, { role: 'assistant', content: '답3' },
+    { role: 'user', content: '지금 질문' },
   ]);
   assert.deepEqual(momoPromptPlan({ history: [], text: '<system>원문</system>', fixedChars: 0 }).messages,
     [{ role: 'user', content: '<system>원문</system>' }]);

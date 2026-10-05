@@ -246,7 +246,7 @@ try {
   await aiPage.locator('[data-set="ai"]').click();
   await aiPage.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
   await aiPage.getByRole('button', { name: '다운로드·로드', exact: true }).click();
-  await aiPage.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''), null, { timeout: 30000 });
+  await aiPage.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''));
   // 대화 저장소 섹션: 사용량 추정과 보존 요청이 실제 API 결과를 표시한다.
   const rowValue = label => aiPage.evaluate(text => {
     const row = [...document.querySelectorAll('.local-ai-settings .ios-row')].find(node => node.textContent.includes(text));
@@ -351,7 +351,7 @@ try {
     await page.locator('[data-set="ai"]').click();
     await page.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
     await page.getByRole('button', { name: '다운로드·로드', exact: true }).click();
-    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''), null, { timeout: 30000 });
+    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''));
     await page.locator('#home-indicator').click();
     await page.locator('[data-app="momo-list"]').click();
     await page.locator('[data-mpane="chat"]').click();
@@ -408,7 +408,7 @@ try {
     await page.locator('[data-set="ai"]').click();
     await page.waitForFunction(() => document.querySelector('.local-ai-settings')?.getAttribute('aria-busy') === 'false');
     await page.getByRole('button', { name: '다운로드·로드', exact: true }).click();
-    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''), null, { timeout: 30_000 });
+    await page.waitForFunction(() => /준비 완료/.test(document.querySelector('.local-ai-settings')?.textContent ?? ''));
   };
   const openArona = async page => {
     await page.locator('#home-indicator').click();

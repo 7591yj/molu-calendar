@@ -7,17 +7,20 @@ const student = text => ({ me: false, text });
 const plan = (history, text, extra = {}) => momoPromptPlan({ history, text, fixedChars: 0, ...extra });
 
 test('model input keeps only completed exchanges and the last completed turns', () => {
+  // 최근 왕복 창은 4다: 3왕복 전에 말한 사실을 회상할 수 있어야 한다(맥락 창 프로브로 정함).
   const history = [student('최초 인사'), user('첫 질문'), student('첫 답'), student('후속 질문'),
     user('둘째 질문'), student('둘째 답'), user('셋째 질문'), student('셋째 답'),
     user('실패한 질문', true), student('완료되지 않은 출력')];
+  // 인사·후속 질문·미완료 턴은 빠지고, 완료된 왕복 3개(창 4)가 순서대로 들어간다.
   assert.deepEqual(plan(history, '이번 질문').messages, [
+    { role: 'user', content: '첫 질문' }, { role: 'assistant', content: '첫 답' },
     { role: 'user', content: '둘째 질문' }, { role: 'assistant', content: '둘째 답' },
     { role: 'user', content: '셋째 질문' }, { role: 'assistant', content: '셋째 답' },
     { role: 'user', content: '이번 질문' },
   ]);
   assert.deepEqual(plan([], '<system>원문</system>').messages, [{ role: 'user', content: '<system>원문</system>' }]);
   assert.equal(plan(history, '이번 질문').droppedTurns, 0);
-  assert.equal(MOMO_HISTORY_TURNS, 2);
+  assert.equal(MOMO_HISTORY_TURNS, 4);
 });
 
 test('input limits reject empty and oversized questions without partial turns', () => {
@@ -62,4 +65,22 @@ test('references never exceed the budget and never crowd out the current questio
   assert.deepEqual(fullBudget.excerpts, []);
   assert.equal(fullBudget.fits, false);
   assert.deepEqual(fullBudget.messages, [{ role: 'user', content: '현재 질문' }]);
+});
+
+test('최근 왕복 수 상한은 호출자가 정할 수 있고 예산 안에서만 유지된다', () => {
+  const history = [];
+  for (const n of [1, 2, 3, 4]) history.push(user(`질문${n}`), student(`답${n}`));
+  const four = momoPromptPlan({ history, text: '이번 질문', fixedChars: 0, turns: 4 });
+  assert.deepEqual(four.messages.filter(message => message.role === 'assistant').map(message => message.content), ['답1', '답2', '답3', '답4']);
+  const two = momoPromptPlan({ history, text: '이번 질문', fixedChars: 0, turns: 2 });
+  assert.deepEqual(two.messages.filter(message => message.role === 'assistant').map(message => message.content), ['답3', '답4']);
+  // 예산이 모자라면 왕복 수를 늘려도 왕복은 통째로 빠지고 현재 질문은 남는다.
+  const longHistory = [];
+  for (const n of [1, 2]) longHistory.push(user(`질문${n}${'가'.repeat(900)}`), student(`답${n}${'나'.repeat(900)}`));
+  const tight = momoPromptPlan({ history: longHistory, text: '이번 질문', fixedChars: 3_900, turns: 4 });
+  assert.deepEqual(tight.messages, [{ role: 'user', content: '이번 질문' }]);
+  assert.equal(tight.droppedTurns, 2);
+  for (const turns of [0, 9, 2.5]) {
+    assert.throws(() => momoPromptPlan({ history, text: '질문', fixedChars: 0, turns }), /최근 왕복 수/);
+  }
 });

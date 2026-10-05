@@ -10,7 +10,10 @@ export const momoSupportsAI = id => !!personaById(id);
 // 가장 나쁜 1.18자/토큰과 메시지 템플릿 오버헤드를 가정하면 4,000자는 약 3,550토큰이다.
 // 4096 문맥 − 출력 256 − 여유 ≈ 3,840토큰 안에 들어가는 보수적 운용값이며, 토큰 수를 직접 세지 않는다.
 export const PROMPT_CHAR_BUDGET = 4_000;
-export const MOMO_HISTORY_TURNS = 2;
+// 최근 왕복 수: 2 → 4로 늘린 근거는 training/lora/runs/context-probe(사실을 3왕복 전에 말한 뒤 회상 질문).
+// 2왕복 창은 그 사실을 못 보고 9표본 중 회상 0·지어냄 4였고, 4왕복 창은 회상 6·지어냄 0이었다.
+// 기억 주입(8/9)이 더 강한 경로이므로 기억 기능은 그대로 두고, 창 밖 대화의 연속성만 보강한다.
+export const MOMO_HISTORY_TURNS = 4;
 export const MOMO_MESSAGE_MAX = 2_000;
 
 const sumChars = list => list.reduce((sum, item) => sum + item.text.length, 0);
@@ -40,12 +43,14 @@ export function completedExchanges(history) {
   return pairs;
 }
 
-export function momoPromptPlan({ history, text, fixedChars, memories = [], excerpts = [], budget = PROMPT_CHAR_BUDGET } = {}) {
+export function momoPromptPlan({ history, text, fixedChars, memories = [], excerpts = [], budget = PROMPT_CHAR_BUDGET,
+  turns = MOMO_HISTORY_TURNS } = {}) {
   if (typeof text !== 'string' || !text.trim() || text.length > MOMO_MESSAGE_MAX) throw new Error('메시지는 1~2,000자로 입력해 주세요.');
   if (!Number.isSafeInteger(fixedChars) || fixedChars < 0) throw new TypeError('고정 프롬프트 길이가 올바르지 않습니다.');
   if (!Number.isSafeInteger(budget) || budget <= 0) throw new TypeError('문자 예산이 올바르지 않습니다.');
   if (!Array.isArray(memories) || !Array.isArray(excerpts)) throw new TypeError('참고 자료는 배열이어야 합니다.');
-  const pairs = completedExchanges(history).slice(-MOMO_HISTORY_TURNS);
+  if (!Number.isInteger(turns) || turns < 1 || turns > 8) throw new TypeError('최근 왕복 수가 올바르지 않습니다.');
+  const pairs = completedExchanges(history).slice(-turns);
   const available = budget - fixedChars - text.length;
   // 참고 자료는 남은 예산의 절반까지만 쓴다. 최근 대화와 참고 자료가 서로를 밀어내지 않게 한다.
   const referenceBudget = available > 0 ? Math.floor(available / 2) : 0;
