@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { CATEGORIES, STATUSES, remainingLabel } from "../lib/calendar.ts";
 import { cx } from "../lib/cx.ts";
@@ -16,7 +16,10 @@ export const button =
   "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-transparent px-3.5 py-2 text-md font-semibold whitespace-nowrap transition-colors [&_.icon]:size-4";
 export const primaryButton = `${button} bg-blue text-white hover:bg-blue-strong`;
 export const quietButton = `${button} border-control bg-surface text-blue hover:bg-hover`;
+export const dangerButton = `${button} border-danger-line bg-surface text-danger hover:bg-danger-soft`;
 export const smallButton = "min-h-[34px]! px-[11px]! py-[5px]! text-sm!";
+export const field =
+  "min-h-10 min-w-0 rounded-lg border border-control bg-surface px-3 text-sm text-ink transition-colors placeholder:text-subtle focus-visible:border-accent focus-visible:shadow-ring focus-visible:outline-0";
 export const iconButton =
   "inline-grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-hover-strong hover:text-blue aria-pressed:text-bookmark";
 
@@ -195,3 +198,138 @@ export function Dialog({
 export const dialogHeading =
   "font-display text-xl/[1.45] font-medium text-ink wrap-anywhere text-balance max-sm:text-[20px]";
 export const dialogLead = "mt-1.5 max-w-[65ch] text-md/[1.7] text-body";
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="relative h-6 w-10 shrink-0 rounded-full bg-control transition-colors after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:rounded-full after:bg-white after:shadow-[0_1px_3px_rgb(32_58_81/25%)] after:transition-transform after:duration-200 after:ease-out focus-visible:rounded-full aria-checked:bg-blue aria-checked:after:translate-x-4"
+    />
+  );
+}
+
+/** Destructive actions ask once more in place instead of a native confirm. */
+export function ConfirmButton({
+  children,
+  confirm,
+  onConfirm,
+  disabled = false,
+  className,
+}: {
+  children: ReactNode;
+  confirm: string;
+  onConfirm: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const [asking, setAsking] = useState(false);
+  const yes = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (asking) yes.current?.focus();
+  }, [asking]);
+  if (!asking)
+    return (
+      <button
+        type="button"
+        className={cx(dangerButton, smallButton, className)}
+        disabled={disabled}
+        onClick={() => setAsking(true)}
+      >
+        {children}
+      </button>
+    );
+  return (
+    <span
+      className={cx("flex flex-wrap items-center gap-2", className)}
+      role="group"
+      aria-label={confirm}
+    >
+      <span className="text-sm font-semibold text-danger">{confirm}</span>
+      <button
+        ref={yes}
+        type="button"
+        className={cx(
+          button,
+          smallButton,
+          "bg-danger text-white hover:bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+        )}
+        disabled={disabled}
+        onClick={() => {
+          setAsking(false);
+          onConfirm();
+        }}
+      >
+        삭제
+      </button>
+      <button
+        type="button"
+        className={cx(quietButton, smallButton)}
+        onClick={() => setAsking(false)}
+      >
+        취소
+      </button>
+    </span>
+  );
+}
+
+const NOTICE_TONES = {
+  info: "border-selected-line bg-selected text-blue-strong",
+  warn: "border-warn-line bg-warn-soft text-warn",
+  danger: "border-danger-line bg-danger-soft text-danger",
+} as const;
+
+export function Notice({
+  tone = "info",
+  icon = "info",
+  children,
+  action,
+  onDismiss,
+  className,
+}: {
+  tone?: keyof typeof NOTICE_TONES;
+  icon?: IconName;
+  children: ReactNode;
+  action?: ReactNode;
+  onDismiss?: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role={tone === "info" ? "status" : "alert"}
+      className={cx(
+        "flex items-center gap-2.5 rounded-lg border py-1.5 pr-1.5 pl-3 text-sm/[1.5] [&>.icon]:size-4",
+        NOTICE_TONES[tone],
+        className,
+      )}
+    >
+      <Icon name={icon} />
+      <span className="min-w-0 flex-1 py-1 wrap-anywhere">{children}</span>
+      {action}
+      {onDismiss && (
+        <button
+          type="button"
+          className="grid size-7 shrink-0 place-items-center rounded-sm opacity-70 transition-opacity hover:opacity-100 [&_.icon]:size-3.5"
+          aria-label="알림 닫기"
+          onClick={onDismiss}
+        >
+          <Icon name="close" />
+        </button>
+      )}
+    </div>
+  );
+}
