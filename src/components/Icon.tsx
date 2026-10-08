@@ -31,6 +31,12 @@ const PATHS = {
   book: "M12 5v15M3 4h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5v15h-5a4 4 0 0 0-4 1 4 4 0 0 0-4-1H3Z",
   bag: "M5 8h14l1 12H4ZM8 8V6a4 4 0 0 1 8 0v2",
   info: "M12 11v6M12 7.5v.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+  settings: "M4 7h9m4 0h3M4 17h3m4 0h9M15 4.5v5M9 14.5v5",
+  trash: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
+  pencil: "m14.5 5.5 4 4M4 20l1-5L15.5 4.5a2.1 2.1 0 0 1 4 4L9 19Z",
+  upload: "M12 15V4M7 9l5-5 5 5M5 19h14",
+  stop: "M7 7h10v10H7Z",
+  send: "M4 12 20 4l-6 16-3-7Z",
 } as const;
 
 export type IconName = keyof typeof PATHS;
