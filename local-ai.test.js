@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { once } from 'node:events';
-import { makeServer } from './server.js';
 import { MODELS, LEGACY_GEMMA2, DEFAULT_MODEL_ID, CHARACTERS, characterById, chatMessagesFor, LITERT_ASSET_PATH, LITERT_CACHE, BENCHMARK, WEBGPU_LIMITS, ENGINE_GUIDANCE, CACHE_NAMES, runtimeCompatibility, gpuLimitReason, modelURL, modelById, summarizeSamples, recommendModel, describeError, inspectEnvironment, inspectModelCaches, deleteModelCaches, LocalAIClient, benchmarkModels, errorWithCode } from './local-ai.js';
 import { readFileSync } from 'node:fs';
 import { PERSONAS, PERSONA_VERSION, systemPromptFor, chatMessagesWithReferences, normalizeMemories, normalizeExcerpts, referenceChars } from './persona.js';
@@ -57,8 +56,8 @@ test('캐릭터별 register와 few-shot 예시의 말투가 일치한다', () =>
 // 예시를 손으로 쓰면 캐릭터 목소리가 아니라 쓴 사람 목소리가 난다.
 // set 1은 실제 모모톡 교환(선생님 발화 포함), set 2는 로비·잡담 음성 대사에서만 온다.
 test('few-shot 예시의 답변은 실제 게임 대사에서만 온다', async () => {
-  const lines = JSON.parse(await readFile(new URL('./resource/persona/lines.json', import.meta.url), 'utf8')).characters;
-  const momotalk = JSON.parse(await readFile(new URL('./resource/persona/momotalk.json', import.meta.url), 'utf8')).characters;
+  const lines = JSON.parse(await readFile(new URL('./public/resource/persona/lines.json', import.meta.url), 'utf8')).characters;
+  const momotalk = JSON.parse(await readFile(new URL('./public/resource/persona/momotalk.json', import.meta.url), 'utf8')).characters;
   const decor = /[\u2665\u2661\u266a\u266b\u2606\u2605\u2764\ufe0f\u2727\u2728]/g;
   const clean = text => text.replace(decor, '').replace(/\s+/g, ' ').trim();
   let checked = 0;
@@ -93,7 +92,7 @@ test('few-shot 예시의 답변은 실제 게임 대사에서만 온다', async 
 // 스토리 대사 2만 줄에서 register를 측정한다. 손으로 적은 추측이 아니라 코퍼스가 판정한다.
 // 학생은 동료에게는 반말, 선생님께는 존댓말을 쓸 수 있으므로 '선생'이 있는 줄만 센다.
 test('선언한 register가 실제 스토리 대사와 맞는다', async () => {
-  const story = JSON.parse(await readFile(new URL('./resource/persona/story_lines.json', import.meta.url), 'utf8')).characters;
+  const story = JSON.parse(await readFile(new URL('./public/resource/persona/story_lines.json', import.meta.url), 'utf8')).characters;
   const polite = /(습니다|ㅂ니다|합니다|입니다|해요|하세요|세요|네요|답니다|지요|어요|아요|예요|이에요|십시오|습니까|ㅂ니까|시죠|군요|나요|까요|데요)\s*[.!?…~]*$/;
   const plain = /(다|냐|니|구나|는데|잖아|거든|해|줘|봐|마|자|야|어|아|지|네|군|라|까)\s*[.!?…~]*$/;
   let judged = 0;
@@ -114,7 +113,7 @@ test('선언한 register가 실제 스토리 대사와 맞는다', async () => {
 
 // 데이터셋은 네 파일이 서로 맞아야 쓸모가 있다. 로스터·헤더·단위 수치를 한 번에 본다.
 test('페르소나 데이터셋 네 파일의 로스터와 헤더가 맞는다', async () => {
-  const read = async name => JSON.parse(await readFile(new URL(`./resource/persona/${name}`, import.meta.url), 'utf8'));
+  const read = async name => JSON.parse(await readFile(new URL(`./public/resource/persona/${name}`, import.meta.url), 'utf8'));
   const characters = await read('characters.json');
   const ids = characters.characters.map(persona => persona.id);
   assert.equal(new Set(ids).size, ids.length, 'characters.json id 중복');
@@ -159,7 +158,7 @@ test('페르소나 데이터셋 네 파일의 로스터와 헤더가 맞는다',
 
 // 공유 세계관은 factions에 한 번만 쓰고, 그 캐릭터가 속한 것만 프롬프트에 들어간다.
 test('소속 세계관은 공유되고, 캐릭터에게 필요한 것만 주입된다', () => {
-  const dataset = JSON.parse(readFileSync(new URL('./resource/persona/characters.json', import.meta.url), 'utf8'));
+  const dataset = JSON.parse(readFileSync(new URL('./public/resource/persona/characters.json', import.meta.url), 'utf8'));
   const factions = dataset.factions;
   assert.ok(Object.keys(factions).length >= 10, 'factions가 너무 적음');
   for (const [key, faction] of Object.entries(factions)) {
@@ -454,7 +453,7 @@ test('LiteRT Worker는 스트림 캐시·새 대화·실제 토큰 통계·엔�
     keys: async () => [...store.keys()].map(url => ({ url })),
     delete: async request => store.delete(request.url),
   };
-  const fake = { postMessage: message => posted.push(message), location: { origin: 'https://test.local' } };
+  const fake = { postMessage: message => posted.push(message), location: { origin: 'https://test.local', href: 'https://test.local/local-ai-worker.bundle.js' } };
   runInNewContext(source, {
     self: fake, MODELS: models, LEGACY_GEMMA2, BENCHMARK, LITERT_ASSET_PATH, LITERT_CACHE, modelURL,
     modelById: id => models.find(model => model.id === id), characterById, chatMessagesFor, chatMessagesWithReferences,
@@ -551,32 +550,4 @@ test('LiteRT Worker는 스트림 캐시·새 대화·실제 토큰 통계·엔�
   assert.match((await request(6, 'load', { modelId: DEFAULT_MODEL_ID })).error.message, /다운로드/);
   assert.equal(store.size, 0, '실패한 다운로드는 완성 캐시로 기록하지 않음');
   assert.equal(sequence.filter(value => value === 'engine').length, 2, '잘린 파일로 엔진을 만들지 않음');
-});
-
-test('서버는 로컬 AI 모듈·Worker만 노출하고 WASM 권한과 다운로드 호스트를 제한한다', async t => {
-  const server = makeServer().listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  t.after(() => new Promise(resolve => server.close(resolve)));
-  const base = `http://127.0.0.1:${server.address().port}`;
-  for (const path of ['/local-ai.js', '/local-ai-session.js', '/local-ai-settings.js', '/local-ai-worker.bundle.js']) {
-    const response = await fetch(base + path);
-    assert.equal(response.status, 200, path);
-    const csp = response.headers.get('content-security-policy');
-    assert.ok(csp.includes("worker-src 'self'"));
-    assert.ok(csp.includes("'wasm-unsafe-eval'"));
-    assert.ok(!csp.includes("'unsafe-eval'"));
-    assert.ok(csp.includes('https://huggingface.co'));
-    assert.ok(!csp.includes('connect-src *'));
-    await response.arrayBuffer();
-  }
-  for (const variant of ['', '_compat', '_asyncify', '_compat_asyncify']) {
-    for (const extension of ['js', 'wasm']) {
-      const response = await fetch(base + LITERT_ASSET_PATH + `litertlm_wasm${variant}_internal.${extension}`, { method: 'HEAD' });
-      assert.equal(response.status, 200);
-      assert.match(response.headers.get('content-type'), extension === 'wasm' ? /application\/wasm/ : /text\/javascript/);
-    }
-  }
-  for (const path of ['package.json', 'unknown.wasm', '..%2f..%2fpackage.json']) assert.equal((await fetch(base + LITERT_ASSET_PATH + path)).status, 404);
-  assert.equal((await fetch(base + '/local-ai-worker.js')).status, 404);
-  assert.equal((await fetch(base + '/node_modules/@mlc-ai/web-llm/lib/index.js')).status, 404);
 });

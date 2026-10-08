@@ -113,7 +113,7 @@ self.onmessage = async ({ data }) => {
       if (model.engine === 'litert') {
         emit('progress', { progress: 0.02, text: 'LiteRT-LM 실행 파일·WebGPU 초기화 중 (모델 다운로드 전)' });
         if (!liteRuntime) {
-          const assetURL = new URL(LITERT_ASSET_PATH, self.location.origin).href;
+          const assetURL = new URL(`./${LITERT_ASSET_PATH.replace(/^\//, '')}`, self.location.href).href;
           // Emscripten otherwise locates WASM beside the Worker, not beside the imported script.
           self.Module = { locateFile: name => new URL(name, assetURL).href };
           liteRuntime = await getOrLoadGlobalLiteRtLm(assetURL);

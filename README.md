@@ -1,315 +1,73 @@
-# MOLU — 샬레 일정 보드
+# MOLU
 
-블루 아카이브 비공식 팬메이드 캘린더입니다. JSON으로 가져온 일정을 월별 캘린더·목록·날짜별 브리핑으로 보여줍니다. 서버 필터(일본·한국·글로벌), 분류 필터(점검·픽업·이벤트·캠페인), 배너 언어 설정(한국어·일본어·영어·중국어), 북마크(localStorage 저장), 이벤트 배너, 목록 보기, KST 기준 시각 표시를 지원합니다. 모든 시각은 한국 시간(Asia/Seoul) 기준입니다.
+Unofficial Blue Archive calendar for KR server, built from Nexon's official notices.
 
-## 종속성
+[Open the calendar](https://7591yj.github.io/molu-calendar/)
 
-- Node.js 22+
-- UI: vanilla DOM + ES modules
-- 선택형 로컬 AI: `@litert-lm/core` 0.17.1 + `@mlc-ai/web-llm` 0.2.85 (설정에서 실행, WebGPU 필요)
-- 빌드·개발: `esbuild`, `three`, `@moeru/three-mmd` (선택형 PMX 캐릭터, `GawrGura/` 모델은 별도 준비 필요)
+## Development
 
-## Quick Start
+Requires Node.js 22.18+ and pnpm. Nix users can run `nix develop`.
 
 ```sh
-npm install
-npm run dev
-# → http://127.0.0.1:5173
-
-npm test
+pnpm install
+pnpm dev              # http://localhost:4321
+pnpm check            # Formatting, linting, types, and tests
+pnpm build            # Build to dist/
+pnpm preview          # Preview at http://127.0.0.1:8787
 ```
 
-- `dev`는 esbuild watch(캐릭터·로컬 AI Worker 번들)와 정적 서버를 함께 실행합니다. `npm start`는 빌드 완료 후 서버를 시작합니다.
-- 최초 실행은 [`resource/events.json`](./resource/events.json)의 실제 운영 일정으로 표시되며, 가져온 일정은 브라우저 `localStorage`에만 저장됩니다.
-- 데이터 형식은 [`schema.json`](./schema.json), 형식 예시는 [`example.json`](./example.json)을 참고하세요.
-
-## 설정앱
-
-애플 HIG의 그룹 목록(iOS 설정) 구조를 따릅니다. 대형 타이틀과 스크롤 시 나타나는 압축 타이틀·헤어라인이 있는 내비게이션 바, 16px 여백의 둥근 카드, 섹션 헤더/푸터, 44pt 행, 텍스트 기준으로 들어간 구분선, 오른쪽 정렬된 값과 회색 셰브론을 씁니다.
-
-- 행 종류: 이동(값 + 셰브론), 정보(값), 스위치(행 전체를 눌러 전환), 파괴적(빨간 글자, 셰브론 없음).
-- 선택은 밀어 올리는 하위 페이지에서 체크 표시로 한다. 뒤로가기에는 상위 화면 제목이 붙고 push/pop 전환이 재생된다(`prefers-reduced-motion`이면 끔).
-- 분할 레이아웃에서 사이드바 항목 탭은 **전환 없이** 상세 열 내용만 바꾸고, 한 열(≤640px)에서만 목록 위로 밀어 올린다. 페이지를 바꿀 때는 이전 페이지의 스크롤 위치를 버리고 위로 되감는다.
-- 개발자 페이지는 **도구 메뉴**다. 도구는 `app.js`의 `DEV_TOOLS` 한 곳에 선언하며, 항목을 추가하면 메뉴 행과 하위 페이지가 함께 생긴다(`pushPage(title, build)`). 지금은 `배너 크롭` 하나로, 초기화와 배너 파일 목록을 하위 페이지에서 연다. 개발자 도구 진입점은 정보 탭의 개발자 모드 스위치가 만든다.
-- 색·배경은 iOS 시스템 값이며 `prefers-color-scheme`으로 다크 모드를 따른다. 데스크톱은 사이드바 + 상세 분할(iPad 설정), 640px 이하는 한 열로 밀어 올리는 목록이다.
-
-## 로컬 AI (실험 기능)
-
-**설정 → 로컬 AI**에서 기기 확인, 모델 다운로드·로드·삭제, 테스트 대화와 자동 추천을 실행합니다. 모모톡 연결은 같은 화면의 **모모톡 로컬 AI**를 켜면 활성화됩니다(기본 꺼짐). LoRA·CPU 폴백·클라우드 AI·임의 모델 업로드는 포함하지 않습니다.
-
-- HTTPS 또는 localhost, 하드웨어 WebGPU가 필요합니다. 기본 모델은 **Gemma 4 E2B / LiteRT-LM**입니다. LiteRT는 어댑터의 한도를 그대로 요청하므로 WebLLM의 `10 > 9` 검사로 차단하지 않습니다. 이는 초기화 요청 가능 여부일 뿐, 실제 모델 셰이더·메모리 호환성이나 속도를 보장하지 않습니다. GPU 정보와 시스템 RAM은 브라우저가 공개하는 범위만 표시하며 전체/남은 VRAM은 확인할 수 없습니다.
-- Qwen3 0.6B/1.7B/4B와 Gemma 2는 선택·추천 목록에서 제외했으며, 기존 캐시가 발견될 때만 삭제 버튼을 제공합니다. WebLLM 실행에는 `shader-f16`, 셰이더당 저장 버퍼 10개, 워크그룹 공유 메모리 32KiB, 저장 버퍼 바인딩 128MiB, 단일 버퍼 256MiB가 필요합니다. 페이지와 Worker에서 **선택 엔진만** 검사하며 비호환을 속도 미달과 구분합니다. WebLLM이 비호환이어도 LiteRT 선택·캐시 삭제는 가능합니다.
-- Gemma 4는 E2B 한 모델부터 검증합니다. 공식 웹 전용 `gemma-4-E2B-it-web.litertlm`(약 2.01 GB, 혼합 정밀도)을 고정 리비전으로 사용합니다. WebLLM의 4비트 MLC 파일과 호환되지 않습니다. 모든 후보의 문맥은 4,096토큰입니다. 다운로드 전 후보·예상 총용량·이용 조건을 확인받으며 가중치 외 파일 크기는 추정치입니다. 캐릭터 전용 모델이 아니므로 한국어 품질은 직접 확인해야 합니다.
-- 측정은 다운로드/로드 → 워밍업 → 동일 한국어 대화 3회 순서입니다. 매회 KV 대화 상태를 초기화하고 추론 모드를 끕니다. LiteRT는 매회 새 대화를 만들고 측정 후 해제하며 `getBenchmarkInfo()`의 토큰 수·생성 속도를 사용합니다. 첫 답변 시간은 숨겨진 추론 채널이 아닌 실제 답변 표시를 기준으로 잽니다. 다운로드·초기 준비는 판정에서 제외합니다. 실제 첫 답변 표시까지 3초 이내면 쾌적, 5초 이내면 사용 가능이며, 생성 속도 중앙값이 **5 tok/s 이상**이어야 통과합니다. 최소 16토큰의 통계가 있어야 하며 최대 96토큰을 생성합니다. 스트림 청크 수를 토큰 수로 세지 않습니다. 저장된 완료 샘플도 현재 속도 기준으로 다시 판정합니다.
-- 측정 중 첫 답변이 5초를 넘거나 생성 작업이 30초를 넘으면 응답 기준 미달입니다. 워밍업은 60초, 다운로드·로드는 15분 제한이며, 이 단계 오류는 속도 미달과 구분합니다. 통과한 후보 중 같은 계열의 가장 큰 모델을 추천합니다. 실패 이후 큰 모델은 다운로드하지 않고 미측정으로 남깁니다. 이는 기기의 일반 사양이나 대화 품질 등급이 아닙니다.
-- 한 Worker에서 한 모델만 실행합니다. 취소·백그라운드 전환은 Worker를 종료해 진행 중 샘플을 무효화합니다. 모델 교체 전 기존 메모리를 해제합니다. 캐시는 남으며 부분 다운로드도 모델별 삭제 버튼으로 정리할 수 있습니다. 테스트 대화는 최근 2번만 문맥으로 사용하고 영구 저장하지 않습니다. 모델 로드 전이나 측정 후에도 메시지 초안은 작성할 수 있으며, 전송만 모델 로드가 필요합니다.
-- LiteRT 모델은 `molu/litert-model-v1` 캐시에 스트리밍 저장한 뒤 캐시 스트림에서 GPU로 읽습니다. 전체 파일을 JS 배열로 모으거나 `clone()`으로 이중 버퍼링하지 않습니다. 다운로드 크기가 맞는 완료 파일만 저장하며 중단 시 처음부터 다시 받을 수 있습니다. WebLLM 캐시는 기존 경로를 유지하고 삭제는 선택 모델에만 적용합니다.
-- 테스트 대화는 **14명**의 캐릭터를 선택할 수 있습니다. 세계관·공통 지침·캐릭터별 페르소나·예시 대화는 `resource/persona/characters.json`에 있고, Worker가 이를 조립해 LiteRT와 WebLLM 양쪽에 system 메시지 + few-shot 예시로 전달합니다. 클라이언트는 선택한 id만 보내며 system 메시지나 예시를 넣을 수 없습니다. 캐릭터 전환 시 이전 대화·답변을 비우되 작성 중인 초안은 유지하며, 선택만 로컬에 저장합니다. 벤치마크에는 캐릭터 프롬프트를 넣지 않습니다. 모모톡의 캐릭터는 이 선택과 무관하게 대화방 id로 결정합니다. 실제 말투 재현 품질은 모델에 따라 다릅니다.
-- 설정·벤치 결과는 `molu.local-ai.v1`에만 저장합니다. 이 엔진 추가 버전으로 처음 진입하면 Gemma 4 E2B를 선택하고 구버전 측정 결과를 제외합니다(다운로드 캐시는 유지). 브라우저/GPU 정보가 달라지면 기존 결과를 추천에 사용하지 않습니다. 브라우저 데이터 초기화와 모델 캐시 삭제는 별개입니다. 결과는 장시간 대화·배터리/발열·다른 GPU 프로그램에 따라 달라지므로 환경이 바뀌면 다시 측정하세요.
-- 기기 정보·대화는 서버로 보내지 않습니다. 모델 다운로드는 Hugging Face/CDN 및 GitHub raw 호스트에 접속하므로 IP 등 접속 정보는 해당 호스트에 전달됩니다. CSP는 이 다운로드 호스트와 WASM 실행만 추가 허용하며 임의 외부 스크립트 실행은 허용하지 않습니다. 정적 배포에서도 같은 CSP 설정이 필요합니다. LiteRT 로더·WASM은 npm 고정 배포본의 4개 변형(JS/WASM 8파일)을 `/vendor/litert-lm/0.17.1/`에 제공해야 합니다. 개발 서버는 그 파일만 허용하며 `node_modules` 전체를 노출하지 않습니다. Worker는 LiteRT의 `importScripts` 로더를 위해 classic/IIFE로 번들링합니다.
-
-`local-ai-session.js`는 설정/모모톡 공용 모델·작업 점유·취소와 환경설정, `local-ai.js`는 모델 목록·판정·Worker 수명·벤치마크, `persona.js`는 페르소나 데이터셋 로드와 프롬프트 조립(참고 자료 블록 포함), `local-ai-worker.js`는 추론과 캐시, `local-ai-settings.js`는 설정 UI입니다. 모모톡 기록은 `chat-store.js`(IndexedDB 트랜잭션·이관·백업), `chat-transcript.js`(페이지 창·진행도·방 요약), `chat-memory.js`(기억 선택·검색)가 나눠 맡습니다. `npm test`는 통계/경계값·추천·취소·프로토콜·보안 정책·페르소나 데이터셋·저장소/세션/기억 계층을 검증합니다.
-
-선택형 UI 회귀 점검은 `npm i --no-save --package-lock=false playwright`, `npx playwright install chromium` 후 `node tools/local-ai-check.mjs`로 실행합니다. 실제 페이지·classic Worker·고정 LiteRT WASM 부팅을 운영 CSP에서 확인합니다. 모의 어댑터의 장치 생성 요청이 한도 9를 사용하는 지점에서 중단하므로 GPU 추론 성공을 뜻하지 않습니다. 별도 모의 응답으로 양쪽 엔진의 추천·전환·취소·캐시 삭제·안전한 텍스트 표시와 데스크톱/모바일 레이아웃을 검증합니다. 모델 가중치는 다운로드하지 않습니다. GPU 실측은 실제 지원 브라우저에서 모델을 다운로드한 후 별도로 확인해야 합니다.
-
-### 모모톡 로컬 AI 사용
-
-1. 설정 → 로컬 AI에서 **모모톡 로컬 AI**를 켭니다.
-2. **설정 → 로컬 AI → 다운로드·로드**에서 모델을 준비합니다. 모델이 준비되지 않은 방에서는 입력창 대신 **로컬 AI 모델을 설정해 주세요 · 설정으로 이동** 안내가 나타나며, 누르면 해당 설정 페이지로 이동합니다. 모모톡에서는 다운로드·로드를 실행하지 않고, 미준비 상태의 입력·전송도 막습니다.
-3. `resource/persona/characters.json`에 등록된 캐릭터만 대화를 시작할 수 있습니다(현재 아로나·프라나와 학생 12명). 모든 지원 방은 설정과 같은 Worker/모델을 재사용하며 방의 캐릭터 페르소나를 적용합니다. 미지원 학생도 원래 상태 메시지를 유지하며 대화 시작만 비활성화합니다. 기존 대화는 삭제하지 않고 읽기 전용으로 보존합니다. 프라나는 이미지가 없어 이름 기반 아바타를 사용합니다.
-
-- 답변은 말풍선에 안전한 텍스트로 스트리밍합니다. 로컬 모드에서는 고정 후속 질문을 붙이지 않습니다. 오늘·내일 일정 요청은 모델 준비 후 기존 캘린더 조회를 사용합니다. 로컬 모드에서 모델이 없으면 일정 요청도 전송하지 않습니다.
-- 모델 입력은 **카드+예시 + 참고 자료(기억·발췌) + 완료된 최근 4왕복 + 새 질문**을 문자 예산 4,000자에 맞춰 조립합니다(`momoPromptPlan`). 왕복 수는 4로 측정해 정했습니다: 사실을 3왕복 전에 말했을 때 2왕복 창은 회상 0/9·지어냄 4/9였고, 4왕복 창은 회상 6/9·지어냄 0/9였습니다(로컬 Qwen3, `training/lora/build_context_probes.mjs`). 최근 메시지가 길면 예산에 맞춰 오래된 왕복부터 통째로 빠집니다. 인사·자동 후속 질문·실패한 턴은 제외하고, 길이를 넘으면 오래된 왕복과 참고 자료를 항목 단위로 빼며 현재 질문은 자르지 않습니다. 설정 테스트와 다른 방의 기록은 전달하지 않습니다. 기억·발췌는 Worker가 `[참고 자료]` system 블록으로 조립하고, 클라이언트는 system 역할을 보낼 수 없습니다.
-- 한 작업이 끝날 때까지 다른 로컬 AI 작업은 잠깁니다. 벤치마크의 샘플 사이에도 점유를 유지합니다. 모모톡 화면/방 이동, 중단 버튼은 진행 중 생성을 취소합니다. 탭 숨김은 설정의 준비 작업을 포함한 로컬 AI 작업을 취소하고 모델 메모리를 해제합니다. 취소·실패 시 클라우드/기존 답변으로 자동 전환하지 않습니다.
-- 사용자 메시지는 생성 전에 저장하고 완료한 답변만 정식 저장합니다. 마지막 메시지가 답 없는 선생님 메시지면 **답변 다시 시도**가 나타나며, 같은 메시지로 다시 생성해 사용자 메시지를 중복 저장하지 않습니다.
-- `local-ai-session.test.js`와 브라우저 점검은 공유 모델·점유·방별 문맥·스트리밍·늦은 응답 차단·재시도·지원 캐릭터 제한·기존 기록의 읽기 전용 보존을 검증합니다. 실제 GPU 추론·캐릭터 말투 품질 검증은 별도입니다.
-- 캐릭터별 **기억**은 대화 화면의 프로필에서 직접 추가하거나 메시지를 길게 눌러(오른쪽 클릭) 만들 수 있습니다. 기억은 그 방에서만 쓰이고, 질문과 관련된 것만 골라 모델 입력에 들어갑니다. 자세한 규칙은 아래 '캐릭터 기억'과 [docs/chat-memory-contract.md](docs/chat-memory-contract.md)를 참고하세요.
-
-### 모모톡 기록 저장
-
-대화 원문은 IndexedDB(`molu-chat-memory`)에 메시지 단위로 저장합니다. 기존 `localStorage`의 `molu.momotalk.v1`은 이관 원본으로 한 번만 읽고 그대로 보존하며, 방별 60개 제한은 없습니다. 저장 계층은 `chat-store.js`(트랜잭션·이관·백업)와 `chat-transcript.js`(페이지 창·진행도·요약)로, DOM 없이 `fake-indexeddb`로 검사합니다.
-
-- 방을 열면 최근 50개를 읽고 **이전 대화 불러오기**로 한 페이지씩 더 읽습니다. 메모리에는 방마다 최근 300개만 두고 전체 기록을 DOM에 올리지 않습니다.
-- 스크립트 진행도는 저장된 방 카운터(`userMessageCount`)를 쓰므로 불러온 페이지 수와 무관하고 새로고침을 견딥니다.
-- 저장에 실패하면 "저장됨"으로 표시하지 않습니다. 메시지는 화면에 남고 상단 배너에서 **다시 시도**·**기록 내보내기**를 제공하며, 실패가 남아 있는 동안에는 새 전송을 막습니다. localStorage로 조용히 우회하지 않습니다.
-- 설정 → 로컬 AI → **대화 저장소**에서 origin 사용량(추정)과 브라우저 보존 상태를 확인하고 보존을 요청할 수 있습니다. 보존은 요청일 뿐이며 사이트 데이터 삭제·비공개 모드·포트(origin) 변경으로 기록이 사라지거나 보이지 않을 수 있어, 백업은 JSON 내보내기를 사용합니다.
-- 설정 → 로컬 AI → 데이터 정리에서 JSON 내보내기·가져오기와 전체 삭제를 실행합니다. 가져오기는 형식·버전·크기·ID·순서·참조·중복을 검증하고, 사용자가 확인한 경우에만 현재 기록을 대체합니다. 방별 삭제는 대화 화면의 프로필에서 합니다. 삭제한 방은 즉시 빈 상태가 되고 다시 열지 않습니다.
-- 같은 방을 두 탭에서 동시에 생성하면 늦게 시작한 쪽이 감지해 거부합니다(잠금이 아니라 신호). 다른 탭의 추가·삭제는 목록과 열린 방에 반영됩니다.
-- 데이터 탭의 **저장 데이터 초기화**는 대화 DB 삭제가 성공한 뒤에만 새로고침합니다. AI 모델 캐시 삭제와는 별개 동작입니다.
-- 실제 브라우저 점검: `node tools/momo-memory-check.mjs` (`npm i --no-save --package-lock=false playwright` 필요, `MOMO_CHECK_BROWSER=chromium|firefox|webkit`로 엔진 선택). 이관·페이지·진행도·방 삭제·백업 왕복·기억 UI·두 탭 동시성과, 가짜 Worker로 페이지→Worker 입력 조립(기억 전달·왕복 문맥)까지 확인합니다. 실제 모델 추론은 하지 않습니다.
-- 규모 점검: `node tools/momo-scale-check.mjs`. 합성 1만 메시지로 이관·방 열기·이전 페이지·방 전환·DOM 크기·모델 입력 크기를 재고, 메모리 창 상한(300행)과 입력 예산을 검사합니다.
-- 실제 모델 라이브 점검(옵트인, **2 GB 다운로드 + 실제 GPU 추론**): `node tools/local-ai-live-check.mjs`. Gemma 4 E2B LiteRT를 WebGPU 브라우저에서 내려받아 모모톡으로 기억 관련·무관 질문을 보내고 답을 저장합니다. 다운로드·쿼터·GPU 실패는 성공으로 바꾸지 않고 그대로 보고합니다.
-
-### 캐릭터 기억
-
-`chat-memory.js`(선택·검색)와 `chat-store.js`의 `memories` store(schema v2)가 담당합니다.
-
-- 기억은 **사용자가 저장한 짧은 문장**입니다. 모델 답변은 자동으로 사실이 되지 않고, 저장 전 확인을 거칩니다.
-- 범위: 기억은 만든 방에서만 쓰입니다. 같은 학생·같은 학교라는 이유로 다른 방에 새지 않습니다.
-- 선택: 방 → 사용 중 → 미만료 필터 후 질문과의 관련성(어절 일치·2-gram 유사도, 어미 변화 흡수)으로 최대 5개·1,200자를 고릅니다. 최상위 기억의 80% 미만은 넣지 않아, 흔한 단어 하나가 겹치는 무관한 기억이 예산을 차지하지 않습니다. 자연스러운 질문 16개 측정에서 최상위 적중 15/16, 원문 발췌 8/8이었습니다(`chat-memory.test.js`).
-- 만료: 기억마다 만료 없음 / 7일 / 30일을 고를 수 있고, 만료·사용 중지된 기억은 검색·모델 입력에서 빠집니다.
-- 무효화: 방 기록을 지우면 그 방의 기억도 함께 지웁니다. 백업 가져오기는 깨진 출처 참조를 거부합니다.
-- 발췌: 질문과 관련된 과거 원문은 메모리에 읽어 둔 창(최근 300개) + 2페이지(최대 100개) 안에서만 최대 2건·800자를 찾습니다. 전체 기록을 훑지 않습니다.
-- 확인: 개발자 모드의 도구 '모모톡 프롬프트'에서 마지막 조립의 문자 예산·선택된 참고 자료·Worker 확인 값을 봅니다. 전체 대화 본문은 로그로 남기지 않습니다.
-- 문자 예산 근거: 앱 형태 프롬프트 실측(Qwen3 토크나이저) 1.18~1.31자/토큰. 가장 나쁜 1.18자/토큰과 템플릿 오버헤드를 가정하면 4,000자는 약 3,550토큰으로 4,096 문맥 − 출력 256 안에 들어갑니다. **토큰 수를 직접 세지 않으므로 문자 수를 토큰 수로 표시하지 않습니다.**
-
-## 일정 데이터
-
-`resource/events.json` — 가상 일정이 아니라 블루 아카이브 실제 운영 일정입니다. 앱이 부팅 시 fetch하고, 실패하면 빈 달력으로 시작합니다(가져오기로 채울 수 있음).
-
-| 분류 | 내용 |
-| --- | --- |
-| `maintenance` | 점검·업데이트 — 아직 실제 출처를 연결하지 않아 비어 있습니다 |
-| `pickup` | 픽업 모집 배너 기간 |
-| `event` | 이벤트·미니 이벤트·종합전술시험·총력전·대결전 |
-| `campaign` | 보상 캠페인·출석 보너스·가이드 미션 |
-
-출처는 [bluearchive.wiki](https://bluearchive.wiki/wiki/Events)(MediaWiki API)입니다. Events Schedule의 JP·GL 기간, Banner List와 Banner List (Global), Total/Grand Assault의 JP·GL 표를 씁니다. 일본은 선행 일정(`servers: ["jp"]`), 한국·글로벌은 후행 일정(`servers: ["gl"]`)으로 나눕니다. 날짜가 `TBD`인 줄은 추정하지 않고 건너뜁니다.
-
-`source_url`은 일정마다 공식 페이지를 가리킵니다. KR 픽업은 [포럼 모집 공지](https://forum.nexon.com/bluearchive/board_list?board=1018) 스레드, KR 이벤트는 공식 마이크로사이트(`bluearchive.nexon.com/events/...`), CN은 [뉴스 기사](https://www.bluearchive-cn.com/), JP 이벤트는 [JP 공식 뉴스](https://bluearchive.jp/news/newsJump)입니다. JP 이벤트는 설명 끝의 일본어 원제(`嵐過天晴`)를 뉴스 제목(`【イベント】「嵐過天晴」紹介`)과 맞춰 찾습니다. 공식 페이지가 없는 일정은 위키 URL을 그대로 쓰고, JP 트랙은 공식 채널이 하나뿐이라 JP 뉴스 목록으로 보냅니다 — 현재 공식 딥링크 55 · JP 뉴스 목록 74 · 위키 24(일정 153건).
-
-위키 자체에는 공식 링크가 없습니다. 이 데이터가 인용하는 위키 페이지 124개를 MediaWiki `prop=extlinks`로 전부 확인한 결과 공식 홈페이지·트위터 링크는 0건이었고(YouTube 트레일러 40건, 나머지 114개 페이지는 외부 링크 자체가 없음), 공식 페이지도 기계가 읽을 날짜를 주지 않아 날짜는 계속 위키 표에서 옵니다.
-
-일정마다 그 일정의 실제 배너를 언어별로(`images: { kr, jp, en, zh }`) 받아 `resource/event_banner_img/`에 webp로 저장합니다(가로 640px). 이벤트 키 아트는 이벤트 표의 미리보기, 픽업은 모집 배너 그림입니다. 총력전·대결전은 보스별 공식 레이드 배너, 종합전술시험은 경기장 스크린샷, 미니 이벤트는 연결된 상세 페이지의 키 아트를 씁니다. 보상 캠페인(경험치 2배 포함)은 공식 JP 유지보수 공지의 드롭/경험치 배너를 배율·날짜로 맞춰 붙입니다. 아트의 언어는 긁어온 페이지를 따릅니다(JP 페이지 → `jp`, Banner List (Global) → `en`). 메모·상세 배너는 서버 필터와 무관하게 설정의 **배너 언어**를 따릅니다. 첫 접속에만 `https://api.country.is/`로 IP 국가를 조회해 KR→한국어, JP→일본어, CN·TW·HK·MO→중국어, 나머지→영어를 선택합니다. IP는 저장하지 않으며 국가 조회 실패(4초 제한) 시 브라우저 언어를 사용합니다. 저장된 언어와 조회 중 수동 변경은 덮어쓰지 않습니다. 해당 언어 이미지가 없거나 HTTP 로딩에 실패하면 `jp` → 있는 다른 언어의 전용 배너 순으로 재시도합니다(중복 후보는 한 번만 시도). 이미지가 없거나 로딩 중·실패 상태여도 2:1 배너 영역은 유지하며 일정 제목과 안내 문구를 표시합니다. 이미지 없이도 메모 배너를 눌러 상세 내용을 확인할 수 있고, 일정이 없으면 빈 상태 안내를 보여 줍니다. 테스트용 대체 이미지는 사용하지 않습니다. 선생님의 메모 아래 배너를 클릭하거나 Enter·Space로 선택하면 해당 일정의 상세 팝업이 열립니다.
-
-한국어·중국어 배너는 공식 사이트에서 따로 받습니다(`tools/vendor_banners.py`).
-
-| 언어 | 소스 | 방식 |
-|---|---|---|
-| `kr` | [forum.nexon.com](https://forum.nexon.com/bluearchive/board_list?board=1018) 공지사항의 픽업 모집 안내 | 본문의 `1) 나구사(★3, 수영복) 픽업 모집` 섹션마다 바로 앞 배너 이미지를 짝짓고, 학생 이름을 SchaleDB `data/kr` 이름표로 영문명으로 바꿔 매칭 |
-| `zh` | [bluearchive-cn.com](https://www.bluearchive-cn.com/) 뉴스 API (`type=1..4`) | 限时招募 공지의 `banner` 이미지. 같은 방식으로 SchaleDB `data/cn` 이름표를 거침 |
-| `kr` (보조) | [bluearchive.nexon.com](https://bluearchive.nexon.com/) 이벤트 마이크로사이트 | `meta_ko.png`. 포럼이 못 채운 일정만 |
-
-매칭의 열쇠는 학생 이름입니다. 위키 제목은 SchaleDB의 영문 `Name`(`Azusa (Swimsuit)`)을 쓰고, SchaleDB의 언어별 표가 같은 `Id`에 한국어·중국어 이름(`아즈사(수영복)`·`梓（泳装）`)을 주기 때문에 이름이 곧 조인 키가 됩니다. 저장소는 아카이브되어 명단이 낡았으므로 `schaledb.com` 라이브 데이터를 씁니다(275명 대 저장소 193명).
-
-픽업·이벤트의 한국어·중국어 배너 매칭은 **한국·글로벌 트랙(`gl`) 일정**을 대상으로 합니다. 총력전·대결전은 `raid-banners.js`의 보스 × 콘텐츠 × 언어 데이터셋을 공통으로 사용합니다. 시즌·서버·일정 `images`와 무관하게 제목의 보스명과 총력전/대결전 구분으로 찾으므로, 같은 보스가 다시 돌면 이미지를 그대로 재사용합니다. 일정 데이터(events.json)는 로테이션 정보만 담고 레이드 이미지는 데이터셋이 결정합니다. 데이터셋이 참조하는 파일 목록은 `RAID_BANNER_FILES`로 노출하며, 수집 도구(`tools/vendor_events.py`, `tools/vendor_banners.py`)와 테스트가 이 목록을 읽어 일정 창에서 빠진 보스의 아트를 삭제하지 않습니다. 새 보스는 데이터셋에 항목 하나를 추가하면 되고, 한국어 아트가 없으면 JP로 표시됩니다. `python3 tools/vendor_raid_banners.py`는 데이터셋의 `kr-*` 파일만 받아 두며, 파일명이 데이터셋과 다르면 조용히 넘어가지 않고 중단합니다. 현재 12개 보스의 29개 파일(JP 15·KR 14)이 등록되어 있고, 게부라는 JP만 있습니다.
-
-배너 파일은 서버가 요청 시 안전한 파일명과 실제 파일 존재 여부를 확인하여 제공합니다. 실행 중 추가·삭제한 이미지도 서버 재시작 없이 반영되며, 경로 탈출과 심볼릭 링크는 차단합니다.
-
-현재 커버리지: `jp` 105 · `kr` 41 · `zh` 26 · `en` 45 (일정 153건). 위키와 SchaleDB가 같은 것을 다르게 부르는 경우(`Eimi (Battle)` vs `Eimi (Armed)`, `Arisu` vs `Aris`)만 `ALIASES` 표로 접고, 표에 없는 어긋남은 붙이지 않습니다 — 억지로 맞추면 다른 학생 배너가 붙습니다. 매칭되지 않은 일정은 `jp`로 폴백합니다.
+To refresh schedule data:
 
 ```sh
-python3 tools/vendor_events.py    # 오늘 기준 -90일 ~ +270일 구간으로 events.json과 배너를 다시 생성
-python3 tools/vendor_banners.py   # 그 일정들에 한국어·중국어 배너를 붙이고 source_url을 공식 링크로 바꿈
+pnpm scrape           # Latest notices
+pnpm scrape:backfill  # Older notices too
 ```
 
-`vendor_banners.py`는 `--report`로 내려받지 않고 매칭 표만, `--selftest`로 매칭 규칙 점검만 돌립니다.
+## Deployment
 
-`curl`과 `cwebp`(`brew install webp`)가 필요합니다. 재실행하면 구간 밖으로 나간 배너 webp는 지우고, 이미 받은 배너는 다시 받지 않습니다. 테스트용 JPG 배너는 제거했습니다.
+GitHub Actions refreshes schedules every Monday at 19:00 KST and deploys to GitHub Pages. Code pushes to `main` also trigger deployment.
 
-제목은 위키가 공개한 실제 영문 이름이고, 달력에서 구분이 필요한 곳에만 한글 분류 꼬리표(픽업·총력전·시즌 등)를 붙입니다. `npm test`가 내장 일정의 스키마·출처 링크·중복 id·서버 범위와 배너 파일·서버 화이트리스트를 검증합니다.
+## Browser-local chat and AI
 
-## 캐릭터 페르소나 데이터
+MomoTalk stores transcripts and explicit memories in IndexedDB. Existing
+`molu.momotalk.v1` localStorage history migrates once; the original snapshot is
+preserved. Use the chat controls to page older messages, save or edit memories,
+export/import backups, delete history, or request persistent browser storage.
+Back up important conversations: browser storage can be cleared or evicted.
 
-`resource/persona/characters.json` — 세계관 1개, 공통 지침 9개, 캐릭터 14명(아로나·프라나 + 12명). `persona.js`가 이 파일을 import해 system 메시지와 few-shot 예시를 조립합니다. 브라우저 모듈과 Worker 번들이 같은 파일을 쓰므로 데이터는 한 곳에만 있습니다.
+AI is optional. The pinned LiteRT-LM 0.17.1 runtime runs Gemma 4 E2B in a classic
+browser Web Worker using WASM and WebGPU. Users explicitly download roughly 2 GB
+from Hugging Face. No Cloudflare Worker or inference server is involved. Target
+Chrome/Edge on a GPU-capable device; unsupported devices retain scripted chat and
+the full calendar. A compatible browser does not guarantee adequate GPU memory
+or acceptable inference speed.
 
-| 필드 | 설명 |
-| --- | --- |
-| `world` | 키보토스 배경과 대화 상황. 모든 캐릭터에 공통 |
-| `rules` | 이모지·장식 문자 금지, 2~4문장, 기술 설명 금지, 페르소나 유지, 없는 일정 지어내지 않기 등 |
-| `factions` | 학교·동아리 12개의 세계관. **공유 블록** — 아래 참조 |
-| `characters[].id` | `students.json`의 id와 같은 키(`CH0069`처럼 코드인 경우도 있음). `Arona`·`Prana`는 학생 명부에 없음 |
-| `characters[].affiliation` | 소속 한 줄. `[소속]` 절의 첫 줄 |
-| `characters[].factions` | 이 캐릭터가 속한 `factions` 키 목록. **이것만** 프롬프트에 들어감 |
-| `characters[].relations` | 인간관계. `[인간관계]` 절 |
-| `characters[].persona` | 성격·말투. `[역할]` 절 |
-| `characters[].register` | `존댓말` · `반말` · `혼용`. 예시 대화의 실제 말투와 일치해야 하고, 말투 프로브의 판정 기준이 됨 |
-| `characters[].examples` | few-shot 예시 2세트. 세트마다 4~6턴 교대 |
+`pnpm dev` and `pnpm build` generate the Worker and copy LiteRT's runtime assets.
+GitHub Pages deployments set `SITE_BASE=/molu-calendar`; Worker and WASM URLs are
+relative to that project path. Model weights are not included in the Pages
+artifact. `public/_headers` applies only on hosts that recognize that format;
+GitHub Pages does not consume it. Keep runtime/model versions pinned together.
 
-### 공유되는 세계관은 한 번만 쓴다
+The official KR schema-v2 feed remains authoritative for the calendar. Upstream's
+multi-region schema-v1 data and banners are retained under `public/resource/`
+for vendoring and research, rather than merged into the live KR feed.
 
-"트리니티는 3대 학원이고 세 분파가 견제한다"를 미카와 나기사 페르소나에 각각 쓰지 않습니다. `factions.trinity`에 한 번 쓰고, 두 캐릭터의 `factions` 목록이 그것을 가리킵니다. 같은 학교·동아리 내용은 한 곳에서만 고치면 됩니다.
+## Upstream tools and checks
 
-system 메시지 조립 순서:
+`pnpm test` runs the typed calendar/scraper tests and upstream's storage, memory,
+transcript, persona and AI regressions. `python3 -B tools/test_vendor_publication.py`
+checks atomic vendor publication. The root legacy calendar module remains a
+schema-v1 validation utility; it does not render the React calendar.
 
-```
-world → [대화 지침] → [소속] → [인간관계] → [역할]
-                       ↑ affiliation + 이 캐릭터의 factions lore만
-```
+`tools/vendor_momotalk.py` refreshes the persona dialogue corpus;
+`tools/vendor_momotalk_ui.py` retains the UI asset downloader. Vendor scripts write
+into `public/resource/`. `training/lora/` contains a separate experimental
+Python/uv training pipeline and its own documentation. Training outputs are not
+loaded by the browser app. `tools/upstream-browser/` contains archived browser
+checks for the replaced vanilla UI, not checks for this React interface.
 
-말투·분량은 별도 지침 블록을 넣지 않고 **예시 대화와 `register` 필드**로 전달한다. 로컬 Qwen3로 측정한 결과 `[말투]`·`[분량]` 같은 지침 블록 추가는 지표를 나아지게 하지 않았고(각 168·60표본 A/B), 모델은 지침보다 예시 리듬을 더 강하게 따랐다. 그래서 예시 선택(`tools/select_examples.py`)에 문장 수 점수를 넣어 앱 규칙(2~4문장)과 어긋나는 긴 예시를 줄였다. 측정 도구는 `training/lora/voice_probe.py`(고정 평가셋, 캐릭터별 기대 문장 범위는 예시 중간값에서 파생)다.
+## Credits
 
-`npm test`가 소속 키가 실재하는지, 아무도 쓰지 않는 faction이 남았는지, 그리고 **다른 캐릭터의 소속 세계관이 프롬프트에 섞이지 않는지**를 검사합니다.
+Schedules and banners come from the [official Blue Archive community](https://forum.nexon.com/bluearchive). MomoTalk assets come from [blue-utils.me](https://blue-utils.me), [SchaleDB](https://github.com/SchaleDB/SchaleDB), [closure-talk](https://github.com/ClosureTalk/closure-talk), [Blue Archive Wiki](https://bluearchive.wiki), and [pizza-studio/momotalk](https://github.com/pizza-studio/momotalk). Fonts are [Gyeonggi Millennium Title](https://www.gg.go.kr/contents/contents.do?ciIdx=679&menuId=2457) and [Noto Sans KR](https://fonts.google.com/noto/specimen/Noto+Sans+KR).
 
-`resource/persona/` 의 나머지 세 파일은 벤더링한 실제 대사입니다. 셋 다 헤더가 같고 `characters.json`의 `id`로 키를 잡습니다.
-
-| 파일 | 내용 | 출처 |
-| --- | --- | --- |
-| `lines.json` | 로비·잡담·편성 음성 대사 409줄 | 나무위키 캐릭터 문서 `대사` 문단 |
-| `story_lines.json` | 스토리 스크립트 대사 9,726줄 (화자 복원) | [feilongproject/ba-data](https://github.com/feilongproject/ba-data) `ScenarioScriptExcelTable` |
-| `momotalk.json` | 실제 모모톡 대화 12개 · (선생님 선택지 → 학생 응답) 쌍 156개 | [feilongproject/ba-data](https://github.com/feilongproject/ba-data) `AcademyMessangerExcelTable` |
-
-```jsonc
-{ "version": 1, "source": "…", "counts": { "characters": 14, "lines": 2946 }, "characters": { "Hoshino": […] } }
-```
-
-`counts`는 단위가 파일마다 다릅니다(`lines` 또는 `pairs`·`conversations`). `npm test`가 헤더·로스터·단위 수치를 네 파일에 걸쳐 검사합니다.
-
-`story_lines.json`은 게임 스크립트 테이블(148MB, 416,284개 항목)에서 우리 캐릭터 이름이 들어간 항목만 꺼내 파싱합니다. 대사가 두 형식으로 오고(`1;호시노;07;대사` 와 `#na;호시노;대사`), 한 항목에 여러 화자가 들어가므로(`1;사쿠라코;01\n5;미네;01\n3;나기사;15;대사`) 슬롯 표시를 모두 찾아 각 지점 사이 글을 그 화자 것으로 봅니다. 첫 화자만 보면 대부분을 놓칩니다.
-
-**인연 스토리는 이 테이블에 없습니다.** 1:1 선생-학생 서사는 별도 테이블인데 공개된 덤프가 없어, 게임 클라이언트를 받아 테이블을 복호화해야 합니다. 대신 `momotalk.json`이 실제 1:1 모모톡 교환을 담고 있습니다.
-
-**few-shot의 assistant 발화는 전부 이 파일들에서 그대로 가져옵니다.** 손으로 예시를 쓰면 캐릭터 목소리가 아니라 쓴 사람 목소리가 나기 때문입니다.
-
-system 메시지 뒤에 예시가, 마지막에 실제 대화가 붙습니다. 예시는 데이터셋에서만 오므로 클라이언트가 자기 system 메시지나 예시를 주입할 수 없습니다. 캐릭터를 추가하려면 `characters`에 항목을 넣으면 되고, `npm test`가 id 중복·세트 수·턴 수·역할 교대·장식 문자, `register` 대비 말투, 그리고 **예시 답변이 `lines.json`의 실제 대사인지**를 검사합니다. JSON 모듈 import attributes(`with { type: 'json' }`)를 쓰므로 Chrome 123 이상이 필요합니다.
-
-### 말투와 호칭 출처
-
-성격·소속·취미·상태메시지는 `resource/momotalk/students.json`(blue-utils.me 벤더링)의 소개문에서 가져왔습니다. 말투·호칭·웃음소리는 그 파일에 없어서 namu.wiki 캐릭터 문서의 캐릭터성 문단과 **대사 표(일본어·한국어 병기)** 로 대조했습니다. 처음 작성한 14명 중 8명이 틀렸고, 대사까지 긁어오면서 잡았습니다.
-
-| 캐릭터 | 처음 쓴 것 | 실제 대사 근거 |
-| --- | --- | --- |
-| 미카 | 존댓말 | “선생님! 돌아왔구나? 기다리고 있었어!” |
-| 시로코 | 존댓말 | “어서 와, 선생님. 오늘도 잘 부탁해.” |
-| 카요코 | 존댓말 | “어서 와, 선생. 그럼 일을 시작해볼까.” |
-| 히나 | 존댓말 | “아아, 기다리고 있었어, 선생님.” |
-| 아루 | 존댓말 | “선생님! 어서 와. 오늘도 이 몸이 선생님을 경호해 주지!” — 반말 |
-| 무츠키 | 존댓말 · '에헤헤' | “쿠후후, 역시 내가 필요하지?” · “쿠흐흣, 결국 들켜버렸네~” |
-| 호시노 | '아하하'만 | “으헤, 빈말이라도 고마워” (으헤가 말버릇, 들떠서 크게 웃을 때는 아하하하) |
-| 와카모 | '선생님'만 | “당신 제 눈에서 벗어나지 말아 주세요” · “기다리고 있었답니다, 선생님” — 둘 다 씀 |
-| 유우카 | '츤데레' | 원리원칙·잔소리 회계가 실제 캐릭터성 |
-
-반말이면서 '선생님'을 그대로 쓰는 캐릭터는 미카·시로코·히나·무츠키·아루입니다. 호시노·카요코는 아저씨 말투로 '선생', 와카모는 '당신'과 '선생님'을 섞습니다.
-
-아루는 나무위키 `기타` 문단의 존댓말 대사(“흐음. 곤란하네요, 저희가 지금 일이 꽉 차있어서.”) 때문에 처음에 혼용으로 적었습니다. 그건 잘못 걸린 전화에 사업체 직원인 척하는 연기였고, 스토리 대사 2만 줄에서 선생님께 하는 말 3/3이 전부 반말이라 반말로 정정했습니다.
-
-### register는 측정값입니다
-
-`story_lines.json`의 선생님향 대사에서 존댓말 종결형을 세어 판정합니다. `npm test`가 이 방향을 강제합니다.
-
-| | 선생님향 대사 | 존댓말 / 종결형 |
-| --- | --- | --- |
-| 반말 (호시노·시로코·아루·카요코·무츠키·히나·미카) | 41~156줄 | **0 / 132** (호시노) · 0 / 110 (아루) · 0 / 142 (미카) · 0 / 128 (히나) · 0 / 65 · 0 / 74 · 0 / 35 |
-| 존댓말 (아로나·프라나·유우카·아리스·유즈·나기사) | 60~111줄 | 73 / 99 (아로나) · 50 / 83 (유우카) · 66 / 149 (아리스) · 56 / 110 (나기사) · 49 / 96 (프라나) · 24 / 47 (유즈) |
-| 혼용 (와카모) | 40줄 | 18 / 35 — 실제로 섞임 |
-
-학생은 동료에게 반말, 선생님께 존댓말을 쓰므로 '선생'이 들어간 줄만 셉니다. 이걸 안 하면 유우카가 0.05로 나옵니다.
-
-### few-shot 구성
-
-| | 출처 | 내용 |
-| --- | --- | --- |
-| 앞 세트 | `momotalk.json` | 실제 모모톡 (선생님 선택지 → 학생 응답). **양쪽 다 게임 원문** |
-| 마지막 세트 | `momotalk.json` 또는 `lines.json` | 생성 직전에 놓이는, 가장 강한 예시 |
-
-`tools/select_examples.py`가 `characters[].examples`만 다시 고릅니다. `world`·`rules`·`persona`·`register`는 건드리지 않으므로 페르소나를 손으로 고쳐도 안전합니다.
-
-고르는 기준:
-
-| | 이유 |
-| --- | --- |
-| 선생님 말이 완결된 문장 | "뭐라고?" 같은 단편에는 답이 붙지 않는다 |
-| 학생 답이 여러 문장 | 규칙이 2~4문장을 요구하는데 예시가 한 문장이면 모델은 규칙 대신 예시를 따른다 |
-| 학생 답이 문장부호로 끝남 | 마지막 앵커가 말끝을 흐리면 모델도 흐린다 |
-| 앞 대화에 기대는 말로 시작하지 않음 | `아니`·`근데`·`그치만`으로 시작하면 대화로 읽히지 않는다 |
-| 서로 다른 장면 | 한 대화를 연속으로 넣으면 모델이 그 장면을 이어간다 |
-
-**점수 낮은 것부터 놓아 가장 좋은 쌍이 생성 직전 자리에 오게 합니다.** 소형 모델은 마지막 예시를 가장 강하게 따라합니다. 모모톡 쌍이 8개 미만인 캐릭터(아루 6, 카요코 5)는 있는 만큼(최대 6턴)을 마지막 세트에 넣고 앞 세트는 음성 대사 기반 예시를 유지합니다.
-
-게임 테이블에 자모가 깨진 대사가 섞여 있어(`나ㄹ 응응응!!!!!`, `조그 ㅁ ㅡ냥 선생님`) 자모가 음절에 붙은 쌍은 버립니다.
-
-아로나·프라나는 학생이 아니라 모모톡이 없어서 set 1도 `lines.json`을 씁니다. 모모톡이 있는 12명은 set 1을 반드시 모모톡에서 채우며, `npm test`가 이를 강제합니다.
-
-### 데이터 재생성
-
-```sh
-python3 tools/vendor_persona_lines.py    # 나무위키 14개 문서 → lines.json (1요청/초)
-python3 tools/vendor_story_lines.py      # 게임 스크립트 테이블 → story_lines.json (git-lfs)
-python3 tools/vendor_momotalk.py         # 게임 테이블 → momotalk.json (git-lfs)
-```
-
-세 스크립트 모두 `tools/persona_common.py`를 통해 로스터와 헤더를 맞춥니다. 캐릭터를 추가하려면 `characters.json`에 넣고 다시 돌리면 됩니다. `vendor_persona_lines.py`만 예외로, 나무위키 문서 제목(`프라나(블루 아카이브)` 등)은 이름에서 유도할 수 없어 `PAGES`를 함께 고쳐야 하고, 빠뜨리면 스크립트가 실패합니다.
-
-**`characters.json`은 벤더 스크립트가 건드리지 않습니다.** 페르소나와 예시는 사람이 관리하는 원본입니다.
-
-나무위키 대사 표에서 일본어·한국어가 한 셀에 병기되면 `<br>`이 언어 경계라 각 줄이 완전한 대사입니다. 한국어만 있는 셀이면 `<br>`은 문장 안 줄나눔이므로 이어 붙입니다.
-
-## 캐릭터 LoRA 학습 실험
-
-[`training/lora/README.md`](training/lora/README.md)에 **NVIDIA CUDA/Linux·WSL2 및 Apple Metal(MPS)**용 자동 학습·평가 루프가 있습니다.
-
-```sh
-./training/lora/train-loop.sh --out runs/my-first-loop
-```
-
-- 기본 실행: 유우카·미카, revision을 고정한 Qwen3-0.6B. 아리스 데이터도 준비됨.
-- 원본 분기·에피소드 경계 보존, 공유 페르소나 재사용, 실행별 데이터 동결.
-- `uv.lock` 설치 → GPU/데이터 검사 → 학습 → 카드·어댑터 저장/재로딩 → 원본 대조 → 제한적 자동 점검 → 결과 요약.
-- 최대 2후보/캐릭터·시간 한도·중복 실행 잠금·명시적 재개. 실행 오류는 무한 재시도하지 않음.
-- **실행 성공과 말투 품질은 별개입니다.** [M4 실제 학습 결과](training/lora/RESULTS.md): 유우카·미카 Qwen3-1.7B 어댑터는 학습/재로딩에 성공했지만 대화 품질은 미달입니다.
-- `summary.md`와 `comparison.jsonl`에 실제 결과를 남깁니다. 앱의 LiteRT-LM/WebLLM 직접 로딩·자동 배포는 포함하지 않습니다.
-
-## 모모톡 학생 데이터
-
-`resource/momotalk/students.json` — 144명(기본 학생, 시즌 한정 의상 제외). 앱이 부팅 시 fetch하고, 실패하면 아로나만 남습니다.
-
-| 필드 | 필수 | 설명 |
-| --- | --- | --- |
-| `id` | ✓ | 대화방 키. `molu.momotalk.v1`의 방 키와 일치해야 함 |
-| `img` |  | `resource/momotalk/` 안의 아바타 파일명(확장자 포함). 비면 이름 첫 글자로 대체 |
-| `name` | ✓ | 전체 이름 |
-| `short` | ✓ | 목록·말풍선 이름표에 쓰는 짧은 이름 |
-| `school` · `year` · `club` |  | 소속 학교 · 학년 · 동아리 |
-| `status` |  | 모모톡 상태 메시지 |
-| `birthday` · `age` · `height` |  | 프로필 카드 정보 |
-| `hobby` · `voice` · `illust` |  | 취미 · 성우 · 일러스트레이터 |
-| `intro` |  | 학생 소개 전문 |
-
-### 출처와 재생성
-
-| 데이터 | 출처 |
-| --- | --- |
-| 이름·학교·동아리·상태메시지·취미·소개·성우 (KR) | [blue-utils.me](https://blue-utils.me) 학생 목록·상세 페이지 |
-| 120×120 아바타 아이콘 | [SchaleDB](https://github.com/SchaleDB/SchaleDB) `images/student/icon/<id>.webp` |
-| 아이콘이 없는 학생의 아바타 | [closure-talk](https://github.com/ClosureTalk/closure-talk) 캐릭터 에셋 |
-| 위 둘에도 없는 학생의 아바타 | [bluearchive.wiki](https://bluearchive.wiki/wiki/Events) `Portrait_<Name>.png` |
-
-```sh
-python3 tools/vendor_students.py   # students.json + 아바타를 다시 생성(사이트 예의상 1요청/0.8초)
-```
-
-시즌 한정 의상(수영복 등)은 기본 학생과 같은 캐릭터라 제외했습니다.
-
-## 라이선스 관련
-
-NEXON / NEXON Games와 무관한 비공식 팬 프로젝트입니다.
+This fan project is not affiliated with NEXON or NEXON Games. Game assets belong to their respective owners.

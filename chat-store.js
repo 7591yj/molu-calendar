@@ -1,4 +1,3 @@
-// Browser-only persistent transcript storage. No localStorage writes or model calls here.
 export const CHAT_DB_NAME = 'molu-chat-memory';
 export const CHAT_DB_VERSION = 2;
 const MIGRATION_KEY = 'legacy-momotalk-v1';
@@ -213,6 +212,7 @@ class ChatStore {
       const tx = this.#db.transaction(stores, mode);
       let result, failure;
       const fail = error => { failure = error; tx.abort(); };
+      // Request success is provisional; report writes only after the transaction commits.
       tx.oncomplete = () => resolve(result);
       tx.onabort = () => reject(failure ?? tx.error ?? new DOMException('대화 저장이 중단되었습니다.', 'AbortError'));
       try { enqueue(tx, value => { result = value; }, fail); }
@@ -295,7 +295,8 @@ class ChatStore {
   }
 
   appendMessage({ roomId, id = globalThis.crypto.randomUUID(), speakerType, text, sourceKind,
-    status = 'complete', createdAt = Date.now() }, { expectedRevision } = {}) {
+    status = 'complete', createdAt = Date.now() }, { expectedRevision, expectedLastMessageId } = {}) {
+    if (expectedLastMessageId !== undefined) identifier(expectedLastMessageId, '응답 대상');
     identifier(roomId, '대화방'); identifier(id, '메시지 ID'); content(text);
     if (!['user', 'character', 'app'].includes(speakerType) || !SOURCES.has(sourceKind) || !STATUSES.has(status) ||
         !Number.isSafeInteger(createdAt) || createdAt < 0 ||
@@ -307,7 +308,8 @@ class ChatStore {
       const request = rooms.get(roomId);
       request.onsuccess = () => {
         const room = request.result ?? roomRecord(roomId);
-        if (expectedRevision !== undefined && room.revision !== expectedRevision) {
+        if ((expectedRevision !== undefined && room.revision !== expectedRevision) ||
+            (expectedLastMessageId !== undefined && room.lastMessageId !== expectedLastMessageId)) {
           fail(conflict('대화방이 변경되었습니다. 다시 읽은 뒤 저장해 주세요.')); return;
         }
         const message = { id, profileId: 'local', roomId, seq: room.nextSeq++,
@@ -323,7 +325,6 @@ class ChatStore {
     });
   }
 
-  // ── 명시적 기억: 사용자가 저장한 짧은 문장. 원문 메시지와 별개의 파생 자료다. ──
   memoryRecord({ id = globalThis.crypto.randomUUID(), roomId, text, sourceMessageId = null, sourceText = null,
     expiresAt = null, enabled = true, createdAt = Date.now(), updatedAt = createdAt }) {
     identifier(roomId, '대화방'); identifier(id, '기억 ID');

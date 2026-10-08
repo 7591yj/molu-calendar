@@ -1,0 +1,94 @@
+name: Update calendar
+
+on:
+  schedule:
+    # Mondays 10:00 UTC = 19:00 KST. Tuesday's update and pickup notices are usually posted by then.
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: Read more history (3 pages × 50 threads per board)
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "reference/**"]
+
+concurrency:
+  group: update-calendar
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Read official notices
+        run: |
+          if [ "${{ inputs.backfill }}" = "true" ]; then pnpm scrape:backfill; else pnpm scrape; fi
+      - name: Commit schedule changes
+        id: commit
+        run: |
+          if git diff --quiet -- public/data/events.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No schedule changes." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "molu-calendar-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/events.json
+          git commit -m "chore(data): refresh official schedules"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: scrape
+    if: always() && (github.event_name == 'push' || needs.scrape.outputs.changed == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Build for GitHub Pages
+        run: pnpm build
+        env:
+          SITE_URL: ${{ steps.pages.outputs.origin }}
+          SITE_BASE: ${{ steps.pages.outputs.base_path }}
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

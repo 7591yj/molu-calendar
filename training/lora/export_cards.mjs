@@ -14,7 +14,7 @@ const cards = Object.fromEntries(ids.map(id => {
     system: systemPromptFor(id),
   }];
 }));
-const bytes = readFileSync(new URL('../../resource/persona/characters.json', import.meta.url));
+const bytes = readFileSync(new URL('../../public/resource/persona/characters.json', import.meta.url));
 console.log(JSON.stringify({
   persona_version: PERSONA_VERSION,
   persona_sha256: createHash('sha256').update(bytes).digest('hex'),

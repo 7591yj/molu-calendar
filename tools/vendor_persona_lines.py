@@ -62,7 +62,7 @@ def fetch(name):
         body = response.read().decode('utf-8', 'replace')
     os.makedirs(CACHE, exist_ok=True)
     open(path, 'w', encoding='utf-8').write(body)
-    time.sleep(1.0)  # ponytail: 1 request/sec, 이 스크립트는 14회만 돈다
+    time.sleep(1.0)  # 원본 사이트에 연속 요청을 보내지 않도록 쉬어 간다.
     return body
 
 

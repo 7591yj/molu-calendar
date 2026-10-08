@@ -1,0 +1,120 @@
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+
+  --color-blue: #336ca5;
+  --color-blue-strong: #2a5d90;
+  --color-accent: #0c98ed; /* Decoration only; use stronger colors for text. */
+  --color-accent-strong: #0878c2; /* Background for white text. */
+  --color-sky: #99d1fa;
+
+  /* Text colors meet 4.5:1 contrast on surface-2. */
+  --color-ink: #244562;
+  --color-body: #3a5571;
+  --color-muted: #536e84;
+  --color-subtle: #5b7488;
+
+  --color-surface: #fff;
+  --color-surface-2: #f3f8fd;
+  --color-weekend: #fafcfe;
+  --color-today: #f1f9ff;
+  --color-hover: #f5f9fd;
+  --color-hover-strong: #e6f1fa;
+  --color-selected: #eaf5ff;
+  --color-selected-line: #b5d8f1;
+  --color-span: #dcedfa;
+
+  --color-line: #dce9f3;
+  --color-line-soft: #e8eff5;
+  --color-control: #c9deed;
+  --color-frame: #bad6eb;
+
+  --color-sunday: #ae4256;
+  --color-saturday: #336ca5;
+  --color-danger: #a33a4f;
+  --color-danger-soft: #fdf0f2;
+  --color-danger-line: #e7b9c3;
+  --color-warn: #85600a;
+  --color-warn-soft: #fff4dc;
+  --color-warn-line: #c59a2e;
+  --color-bookmark: #9b7a35;
+  --color-work: #4f5f78;
+  --color-work-line: #d3dbe6;
+  --color-focus: #009fcb;
+  --color-tint-ink: #173449;
+
+  --font-*: initial;
+  --font-display: "GyeonggiTitle", "Noto Sans KR Variable", sans-serif;
+  --font-body:
+    "Noto Sans KR Variable", -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", sans-serif;
+  --default-font-family: var(--font-body);
+  --text-*: initial;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 32px;
+
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --shadow-*: initial;
+  --shadow-paper:
+    7px 7px 0 rgb(255 255 255 / 55%), 0 6px 24px rgb(56 91 122 / 6%);
+  --shadow-paper-sm: 3px 3px 0 rgb(255 255 255 / 55%);
+  --shadow-pop: 0 14px 36px rgb(32 58 81 / 18%);
+  --shadow-dialog: 0 24px 100px rgb(32 58 81 / 25%);
+  --shadow-ring: 0 0 0 3px rgb(12 152 237 / 14%);
+  --default-transition-duration: 150ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Desktop-first: the layout steps down at these widths with max-* variants. */
+  --breakpoint-*: initial;
+  --breakpoint-xs: 361px;
+  --breakpoint-sm: 721px;
+  --breakpoint-md: 981px;
+  --breakpoint-lg: 1201px;
+}
+
+:root {
+  --work-hatch: repeating-linear-gradient(
+    135deg,
+    #e3e8f0 0 3px,
+    #f2f5f9 3px 6px
+  );
+  --backdrop: rgb(23 53 77 / 40%);
+  --glass: rgb(255 255 255 / 20%);
+
+  --sky-page:
+    radial-gradient(
+      ellipse at 78% 0,
+      rgb(255 255 255 / 92%) 0,
+      transparent 40%
+    ),
+    linear-gradient(160deg, #b8e0fb 0, #e3f3fe 46%, #f5faff 100%);
+  --sky-rays:
+    linear-gradient(
+      118deg,
+      transparent 24%,
+      rgb(255 255 255 / 46%) 24.2% 31%,
+      transparent 31.2% 49%,
+      rgb(255 255 255 / 40%) 49.2% 50%,
+      transparent 50.2%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 69%,
+      rgb(255 255 255 / 40%) 69.2% 70%,
+      transparent 70.2%
+    );
+  --art-sheen: linear-gradient(
+    118deg,
+    transparent 52%,
+    rgb(255 255 255 / 55%) 52.4% 60%,
+    transparent 60.4%
+  );
+}
