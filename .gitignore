@@ -6,3 +6,8 @@ dist/
 .dev.vars*
 *.log
 .DS_Store
+
+public/local-ai-worker.bundle.js*
+public/vendor/
+training/lora/.venv/
+training/lora/runs/
