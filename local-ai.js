@@ -51,8 +51,7 @@ export const CACHE_NAMES = ['webllm/model', 'webllm/config', 'webllm/wasm', LITE
 const cacheModelFor = (name, url, modelLib) => CACHE_MODELS.find(candidate => name === LITERT_CACHE
   ? candidate.engine === 'litert' && url === modelURL(candidate)
   : candidate.engine === 'webllm' && (url.startsWith(modelURL(candidate)) || url === modelLib?.get(candidate.id)));
-// Page-thread Cache Storage scan. Worker 없이 기기 확인·정리에서 바로 쓴다.
-// scope: 'weights' | 'runtime' | undefined. unrelated origin 캐시는 건드리지 않는다.
+// Inspect caches without starting the Worker or loading a model.
 export async function inspectModelCaches({ caches: cacheStorage = globalThis.caches, modelLib = new Map() } = {}) {
   const counts = Object.fromEntries(CACHE_MODELS.map(model => [model.id, 0]));
   const bytes = Object.fromEntries(CACHE_MODELS.map(model => [model.id, 0]));

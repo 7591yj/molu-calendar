@@ -1,10 +1,9 @@
-// MomoTalk transcript session over chat-store.js: paged reads, per-message appends and room summaries.
-// No DOM, localStorage or model calls here; app.js renders the returned view records.
+// IndexedDB remains authoritative; this session caches pages for src/hooks/useChat.ts.
 import { openChatStore, CHAT_DB_NAME } from './chat-store.js';
 import { searchMessages } from './chat-memory.js';
 
-export const ROOM_PAGE = 50;   // messages per read page
-export const ROOM_CACHE = 300; // messages kept in memory per room; the oldest loaded page is dropped first
+export const ROOM_PAGE = 50;
+export const ROOM_CACHE = 300;
 
 const pad = value => String(value).padStart(2, '0');
 const timeOf = createdAt => {
@@ -13,7 +12,7 @@ const timeOf = createdAt => {
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
 
-// Store record → render record. Legacy rows keep their original HH:mm label and never claim a date.
+// Legacy rows keep their HH:mm label; migration time is not a message date.
 export function viewMessage(record) {
   return {
     id: record.id, me: record.speakerType === 'user', text: record.text,
@@ -40,7 +39,6 @@ export class ChatTranscript {
 
   close() { this.#store.close(); }
 
-  // Chat list: rooms that actually hold messages, newest activity first (ties by room id).
   async refreshSummaries() {
     const rooms = await this.#store.listRooms();
     this.#summaries = new Map();
@@ -61,7 +59,6 @@ export class ChatTranscript {
 
   summary(roomId) { return this.#summaries.get(roomId) ?? null; }
 
-  // Newest page of a room. Missing rooms read as an empty transcript.
   async load(roomId) {
     const [page, room] = await Promise.all([
       this.#store.readMessages(roomId, { limit: ROOM_PAGE }),
@@ -169,7 +166,6 @@ export class ChatTranscript {
     return searchMessages(rows, { query, limit });
   }
 
-  // ── 명시적 기억 ──
   memories(roomId) { return this.#store.listMemories(roomId); }
   saveMemory(draft) { return this.#store.saveMemory(draft); }
   updateMemory(id, patch) { return this.#store.updateMemory(id, patch); }
