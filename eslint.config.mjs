@@ -8,7 +8,15 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["dist/", "node_modules/", "public/", "reference/", "**/.*/"],
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "public/",
+      "reference/",
+      "tools/upstream-browser/",
+      "training/",
+      "**/.*/",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -40,6 +48,13 @@ export default [
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       "jsx-a11y/label-has-associated-control": ["error", { depth: 3 }],
+    },
+  },
+  {
+    files: ["*.test.js"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-misleading-character-class": "off",
     },
   },
 ];

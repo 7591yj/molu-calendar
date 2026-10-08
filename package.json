@@ -9,20 +9,22 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "pnpm build:ai && astro dev",
+    "build": "pnpm build:ai && astro build",
     "preview": "wrangler dev",
     "astro": "astro",
     "scrape": "node scraper/cli.ts",
     "scrape:backfill": "node scraper/cli.ts --pages 3 --page-size 50",
-    "test": "vitest run",
+    "test": "vitest run && pnpm test:upstream",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "typecheck": "astro check",
     "check": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm typecheck && pnpm test",
-    "deploy": "pnpm build && wrangler deploy"
+    "deploy": "pnpm build && wrangler deploy",
+    "build:ai": "node tools/build-ai.mjs",
+    "test:upstream": "node --test *.test.js"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-kr": "^5.3.0",
@@ -30,7 +32,9 @@
     "astro": "7.3.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "@litert-lm/core": "0.17.1",
+    "@mlc-ai/web-llm": "0.2.85"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
@@ -56,6 +60,8 @@
     "typescript-eslint": "^8.62.1",
     "vitest": "^5.0.3",
     "wrangler": "^4.0.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "esbuild": "0.25.12",
+    "fake-indexeddb": "6.2.4"
   }
 }
