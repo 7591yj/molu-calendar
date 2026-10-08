@@ -1,23 +1,16 @@
-// MomoTalk conversations are choice-driven in-game: a student speaks and Sensei picks a reply.
-// '@today' / '@tomorrow' answers resolve against this calendar's real schedule (see app.js).
 import { personaById } from './persona.js';
 
+// src/lib/momotalk.ts scheduleReply resolves these tokens against the live calendar.
 export const MOMO_QUERIES = ['@today', '@tomorrow'];
 export const momoSupportsAI = id => !!personaById(id);
 
-// 모델 입력 조립: 카드·예시(고정) + 참고 자료(기억·발췌) + 완료된 최근 왕복 + 새 질문.
-// 예산은 문자 기준이다. 앱 형태 프롬프트 실측(Qwen3 토크나이저)에서 1.18~1.31자/토큰이었고,
-// 가장 나쁜 1.18자/토큰과 메시지 템플릿 오버헤드를 가정하면 4,000자는 약 3,550토큰이다.
-// 4096 문맥 − 출력 256 − 여유 ≈ 3,840토큰 안에 들어가는 보수적 운용값이며, 토큰 수를 직접 세지 않는다.
+// 문자 예산이며 토큰 제한을 보장하지 않는다. Qwen3 실측 근거는 docs/chat-memory-contract.md.
 export const PROMPT_CHAR_BUDGET = 4_000;
-// 최근 왕복 수: 2 → 4로 늘린 근거는 training/lora/runs/context-probe(사실을 3왕복 전에 말한 뒤 회상 질문).
-// 2왕복 창은 그 사실을 못 보고 9표본 중 회상 0·지어냄 4였고, 4왕복 창은 회상 6·지어냄 0이었다.
-// 기억 주입(8/9)이 더 강한 경로이므로 기억 기능은 그대로 두고, 창 밖 대화의 연속성만 보강한다.
+// 3왕복 전 사실 회상을 위해 4왕복을 유지한다. 근거는 training/lora/runs/context-probe.
 export const MOMO_HISTORY_TURNS = 4;
 export const MOMO_MESSAGE_MAX = 2_000;
 
 const sumChars = list => list.reduce((sum, item) => sum + item.text.length, 0);
-// 완결된 항목 단위로만 담는다: 기억이나 왕복을 중간에서 자르지 않는다.
 function takeWhole(items, budget) {
   const kept = [];
   let used = 0;
@@ -28,7 +21,6 @@ function takeWhole(items, budget) {
   }
   return kept;
 }
-// 완료된 user→assistant 쌍만, 길이 초과·pending 메시지는 제외한다.
 export function completedExchanges(history) {
   const pairs = [];
   let user = null;
@@ -52,7 +44,7 @@ export function momoPromptPlan({ history, text, fixedChars, memories = [], excer
   if (!Number.isInteger(turns) || turns < 1 || turns > 8) throw new TypeError('최근 왕복 수가 올바르지 않습니다.');
   const pairs = completedExchanges(history).slice(-turns);
   const available = budget - fixedChars - text.length;
-  // 참고 자료는 남은 예산의 절반까지만 쓴다. 최근 대화와 참고 자료가 서로를 밀어내지 않게 한다.
+  // 참고 자료가 최근 대화를 밀어내지 않도록 남은 예산의 절반을 대화에 남긴다.
   const referenceBudget = available > 0 ? Math.floor(available / 2) : 0;
   const selectedMemories = takeWhole(memories, referenceBudget);
   const selectedExcerpts = takeWhole(excerpts, referenceBudget - sumChars(selectedMemories));
@@ -147,8 +139,6 @@ export function momoTopicsFor(id) {
   return Object.hasOwn(MOMO_TOPICS, id) ? MOMO_TOPICS[id] : MOMO_TOPICS.default;
 }
 
-// ── 검색 뇌: 사전 대화에서 가장 비슷한 응답을 찾는다 (의존성 0, 전부 로컬) ──
-// '@today'/'@tomorrow'는 app.js의 resolveReply가 실제 캘린더 조회로 바꾼다.
 export const MOMO_FALLBACK = {
   Arona: [
     '음…… 아로나는 아직 공부 중이에요. 일정 얘기라면 도와드릴 수 있어요!',

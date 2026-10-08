@@ -31,6 +31,7 @@ export function useChat() {
     let opened: ChatTranscript | null = null;
     let legacyRaw: string | null = null;
     try {
+      // Preserve the snapshot; ChatTranscript.open migrates it atomically to IndexedDB.
       legacyRaw = localStorage.getItem("molu.momotalk.v1");
     } catch {
       setError("이 브라우저에서 이전 대화 저장소를 읽을 수 없어요.");

@@ -2,7 +2,7 @@ import { BENCHMARK, DEFAULT_MODEL_ID, LocalAIClient, modelById, errorWithCode } 
 
 export const AI_SETTINGS_KEY = 'molu.local-ai.v1';
 
-// One tab, one Worker. A lease covers the WHOLE workflow, including gaps between benchmark samples.
+// Hold the Worker for the whole workflow, including gaps between benchmark samples.
 export class LocalAISession extends EventTarget {
   constructor(client = new LocalAIClient(), storage) {
     super();

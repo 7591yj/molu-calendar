@@ -1,10 +1,10 @@
-"""Vendoring of the MomoTalk chat assets (fan-project asset prep, run once; not app runtime).
+"""Download MomoTalk UI assets for local use.
 
 Sources:
   - pizza-studio/momotalk (GH) : BG_MainOffice.jpg  (Schale office backdrop used behind the app window)
   - bluearchive.wiki           : SE_MomoTalk_01.wav (in-game MomoTalk notification sound)
 
-Run:  python3 tools/vendor_momotalk.py
+Run:  python3 tools/vendor_momotalk_ui.py
 Writes: public/resource/momotalk/ui/{BG_MainOffice.jpg, SE_MomoTalk_01.wav}
 """
 

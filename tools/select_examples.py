@@ -37,8 +37,8 @@ CONNECTIVE = ('아니', '근데', '그치', '어,', '음,', '그리고', '하지
 BROKEN = re.compile(r'[가-힣][ㄱ-ㅎㅏ-ㅣ]|[ㄱ-ㅎㅏ-ㅣ][가-힣]|(?:^|\s)[ㄱ-ㅎㅏ-ㅣ](?:\s|$)')
 PAIRS_PER_CHARACTER = 8
 SETS = 2
-MIN_TURNS = 4                      # 한 세트가 가질 수 있는 최소 턴
-MAX_TURNS = 6                      # 최대 턴(테스트가 4~6을 허용한다)
+MIN_TURNS = 4
+MAX_TURNS = 6
 
 
 def clean(text):
@@ -54,7 +54,7 @@ def score(sensei, student):
     if len(KOREAN.findall(sensei)) >= 6:
         value += 2
     if len(SENTENCE.findall(student)) >= 2:
-        value += 4                       # 여러 문장 = 규칙과 같은 모양
+        value += 4
     # 앱 규칙은 2~4문장이다. 규칙을 벗어난 긴 답을 예시로 쓰면 모델이 그 길이를 그대로 따라 한다.
     endings = len(SENTENCE_END.findall(student))
     if RULE_SENTENCES[0] <= endings <= RULE_SENTENCES[1]:
@@ -62,7 +62,7 @@ def score(sensei, student):
     elif endings > RULE_SENTENCES[1]:
         value -= 3
     if student.endswith(('.', '!', '?', '…')):
-        value += 3                       # 끝까지 말한 답. 마지막 앵커로 적합하다
+        value += 3
     if 25 <= len(student) <= 90:
         value += 2
     if student.startswith(CONNECTIVE):
@@ -106,7 +106,7 @@ def pick(pairs):
             if len(chosen) == PAIRS_PER_CHARACTER:
                 break
         if len(chosen) >= PAIRS_PER_CHARACTER or (level == len(LEVELS) - 1 and len(chosen) >= MIN_TURNS):
-            chosen.sort(key=lambda item: item[0])   # 가장 좋은 쌍이 마지막에 오도록
+            chosen.sort(key=lambda item: item[0])
             return [(sensei, student) for _, sensei, student in chosen]
     return []
 
@@ -135,8 +135,7 @@ def main():
             persona['examples'][0] = build(pairs[:per])
             persona['examples'][-1] = build(pairs[per:per * 2])
         else:
-            # 쌍이 8개 미만이면 있는 만큼을 마지막 세트에 넣고, 앞 세트는 음성 대사
-            # 기반 예시를 그대로 둔다. 앞 세트를 지우면 채울 것이 없다.
+            # 부족한 모모톡 쌍은 마지막 세트에만 넣어 앞의 음성 대사 예시를 보존한다.
             persona['examples'][-1] = build(pairs[-min(MAX_TURNS, len(pairs)):])
         last = persona['examples'][-1][-1]['content']
         print(f"  {persona['id']:9s} {len(pairs)}턴 · 마지막 답변: {last[:38]}")

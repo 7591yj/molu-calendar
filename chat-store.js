@@ -1,4 +1,3 @@
-// Browser-only persistent transcript storage. No localStorage writes or model calls here.
 export const CHAT_DB_NAME = 'molu-chat-memory';
 export const CHAT_DB_VERSION = 2;
 const MIGRATION_KEY = 'legacy-momotalk-v1';
@@ -213,6 +212,7 @@ class ChatStore {
       const tx = this.#db.transaction(stores, mode);
       let result, failure;
       const fail = error => { failure = error; tx.abort(); };
+      // Request success is provisional; report writes only after the transaction commits.
       tx.oncomplete = () => resolve(result);
       tx.onabort = () => reject(failure ?? tx.error ?? new DOMException('대화 저장이 중단되었습니다.', 'AbortError'));
       try { enqueue(tx, value => { result = value; }, fail); }
@@ -325,7 +325,6 @@ class ChatStore {
     });
   }
 
-  // ── 명시적 기억: 사용자가 저장한 짧은 문장. 원문 메시지와 별개의 파생 자료다. ──
   memoryRecord({ id = globalThis.crypto.randomUUID(), roomId, text, sourceMessageId = null, sourceText = null,
     expiresAt = null, enabled = true, createdAt = Date.now(), updatedAt = createdAt }) {
     identifier(roomId, '대화방'); identifier(id, '기억 ID');

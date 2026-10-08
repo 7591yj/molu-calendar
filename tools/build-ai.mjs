@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 await build({
   entryPoints: ["local-ai-worker.js"],
   bundle: true,
+  // LiteRT uses importScripts; LocalAIClient must load this as a classic Worker.
   format: "iife",
   target: "es2022",
   minify: true,
