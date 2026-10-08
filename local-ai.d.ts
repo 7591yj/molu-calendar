@@ -13,6 +13,12 @@ export function inspectEnvironment(): Promise<{
   reason: string;
   engines: Record<string, { supported: boolean; reason: string }>;
 }>;
+export function inspectModelCaches(): Promise<{
+  counts: Record<string, number>;
+  bytes: Record<string, number>;
+  runtimeBytes: number;
+  runtimeFiles: number;
+}>;
 export interface AIEvent {
   event: string;
   text?: string;

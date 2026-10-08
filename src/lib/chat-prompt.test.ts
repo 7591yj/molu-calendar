@@ -21,6 +21,7 @@ const store = {
       text: "금요일 독서 모임은 오후 7시",
       enabled: true,
       expiresAt: null,
+      sourceMessageId: null,
     },
     {
       id: "other",
@@ -28,6 +29,7 @@ const store = {
       text: "금요일 독서 모임은 오후 8시",
       enabled: true,
       expiresAt: null,
+      sourceMessageId: null,
     },
   ],
   searchRoom: async () => [
