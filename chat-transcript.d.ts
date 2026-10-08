@@ -12,6 +12,7 @@ export interface Memory {
   id: string;
   roomId: string;
   text: string;
+  sourceMessageId: string | null;
   enabled: boolean;
   expiresAt: number | null;
 }

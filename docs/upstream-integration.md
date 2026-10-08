@@ -16,6 +16,9 @@ delete, memory management, storage estimates and persistence requests. The
 legacy localStorage snapshot is preserved. Sending takes a browser Web Lock per
 room, persists the question before generation and saves only completed replies.
 Cancelled/stale replies are discarded; unanswered questions can be retried.
+Storage, backup and the local model live in MomoTalk settings (the header's
+settings button); each AI-capable room has its own memory panel. Destructive
+actions confirm inline, and the composer never starts a model download.
 
 The browser-local AI runtime stays pinned to LiteRT-LM 0.17.1 and its matching
 Gemma 4 E2B web artifact. The build emits a classic IIFE Worker and copies WASM
