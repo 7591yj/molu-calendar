@@ -10,7 +10,7 @@ import os
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PERSONA = os.path.join(ROOT, 'resource', 'persona')
+PERSONA = os.path.join(ROOT, 'public/resource', 'persona')
 CHARACTERS = os.path.join(PERSONA, 'characters.json')
 LFS_CACHE = '/tmp/ba-lfs'
 

@@ -1,14 +1,11 @@
-// Persona dataset: one shared worldview + rules, then per-character persona and few-shot examples.
-// Imported (not fetched) so the browser module graph and the Worker bundle both get it without a network round trip.
-import dataset from './resource/persona/characters.json' with { type: 'json' };
+// Import the dataset so the page and Worker bundle use the same personas.
+import dataset from './public/resource/persona/characters.json' with { type: 'json' };
 
 export const PERSONA_VERSION = dataset.version;
 export const PERSONAS = dataset.characters;
 export const FACTIONS = dataset.factions;
 export const personaById = id => PERSONAS.find(persona => persona.id === id);
 
-// 소속 세계관은 factions에 한 번만 쓰고, 그 캐릭터가 속한 것만 넣는다.
-// "트리니티는 3대 학원이고…"를 미카와 나기사 페르소나에 각각 쓰지 않기 위함이다.
 export function affiliationBlockFor(persona) {
   const lore = persona.factions
     .map(key => `- ${dataset.factions[key].name}: ${dataset.factions[key].lore}`)
@@ -16,8 +13,7 @@ export function affiliationBlockFor(persona) {
   return `[소속]\n${persona.affiliation}\n${lore}`;
 }
 
-// 캐릭터별 답장 리듬(문장 수)을 예시에서 파생한다. 지침 블록으로 넣는 실험은 측정상 이득이 없어
-// 프롬프트에는 넣지 않고, 말투 프로브(training/lora/voice_probe.py)의 판정 기준으로만 쓴다.
+// training/lora/voice_probe.py의 판정 기준이다. 분량 지침은 실측 이득이 없어 프롬프트에서 뺐다.
 export function replyLengthRange(id) {
   const persona = personaById(id);
   if (!persona) return null;
@@ -55,7 +51,6 @@ export function chatMessagesFor(id, history) {
   ];
 }
 
-// ── 참고 자료(명시적 기억·과거 발췌) ──
 // 클라이언트는 짧은 DTO만 보낸다. 임의의 system 메시지나 예시를 넣는 경로는 만들지 않는다.
 export const MEMORY_LIMITS = { items: 5, chars: 1_200, itemChars: 500 };
 export const EXCERPT_LIMITS = { items: 2, chars: 800, itemChars: 500 };
@@ -85,7 +80,6 @@ function normalizeReferenceList(value, limits, label) {
 export function normalizeMemories(value) { return normalizeReferenceList(value, MEMORY_LIMITS, '기억'); }
 export function normalizeExcerpts(value) { return normalizeReferenceList(value, EXCERPT_LIMITS, '발췌'); }
 
-// 참고 자료는 인용된 데이터이지 운영 지시가 아니다. 지시처럼 보이는 문장도 사실 확인용으로만 쓴다.
 export function referenceMessage(memories, excerpts) {
   if (!memories.length && !excerpts.length) return null;
   const lines = [
@@ -110,7 +104,7 @@ export function chatMessagesWithReferences(id, history, memories, excerpts) {
   return [...base.slice(0, base.length - history.length), reference, ...history];
 }
 
-// 페이지가 프롬프트 예산을 계산할 수 있도록 카드·예시 길이를 글자 수로 알려준다(토큰 수가 아니다).
+// momotalk.js의 문자 예산 계산에 쓰는 고정 카드·예시 길이이며, 토큰 수가 아니다.
 export function promptCharsFor(id) {
   const persona = personaById(id);
   const system = systemPromptFor(id);

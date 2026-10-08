@@ -1,36 +1,16 @@
-"""KR/ZH event banners from official sources (fan data prep, not app runtime).
+"""Match official KR/ZH banners to the schema-v1 wiki feed.
 
-ZH: bluearchive-cn.com news API — every row carries a `banner` image. The 限时招募
-    (limited recruitment) rows are the pickup banners in Simplified Chinese.
-KR: forum.nexon.com board 1018 (공지사항) — the 9/29(화) 픽업 모집 안내 notices. Each
-    notice body holds one banner per numbered section ("1) 나구사(★3, 수영복) 픽업 모집"),
-    and the section header names the student in Korean.
+SchaleDB's localized student names join wiki pickup titles to Nexon KR notice
+sections and CN recruitment news. KR event microsites supply additional OG art.
+Ambiguous matches get no banner. JP events use the original title from
+vendor_events.py's description field to find official JP news.
 
-Both are matched to events by student name. The wiki titles use SchaleDB's English
-`Name` ("Azusa (Swimsuit)"); SchaleDB's per-language tables give the same student's
-Korean and Chinese `Name` under the same Id, so the name is the join key. A KR
-microsite (sitemap.xml) also ships a Korean OG banner, which fills events the forum
-does not cover.
+Matches update source_url as well as images; dates still come from wiki tables.
+Unmatched GL events keep their wiki source because official KR/GL channels differ.
 
-Nothing here is guessed: an event with no confident match keeps no kr/zh banner
-rather than borrowing another event's art, and a slug or notice that lands on more
-than one event is dropped as ambiguous.
-
-The same matches carry the event's official source, so `source_url` points at the KR
-notice thread, the KR event microsite or the CN news article instead of the wiki page
-the schedule came from. JP-track events are matched by their Japanese original title
-(which vendor_events.py already puts in `description`) against the official JP news,
-falling back to the JP news list — the JP site has one channel while GL splits across
-KR/GL, so unmatched GL events keep their wiki URL.
-
-The wiki link is only a fallback here: bluearchive.wiki publishes no external links at
-all (checked across every page this dataset cites) and the official pages carry no
-machine-readable dates, so the dates still come from the wiki tables.
-
-Run:  python3 tools/vendor_banners.py [--report]
-      --report prints the match table without downloading or writing.
-Writes: resource/events.json (source_url, images.kr / images.zh),
-        resource/event_banner_img/*.webp
+Run: python3 tools/vendor_banners.py [--report]
+     --report lists matches without downloading or writing.
+Writes: public/resource/events.json and public/resource/event_banner_img/*.webp
 """
 
 import json
@@ -45,8 +25,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vendor_events import jp_news, raid_assets, publish_events
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EVENTS = os.path.join(ROOT, 'resource', 'events.json')
-BANNER_DIR = os.path.join(ROOT, 'resource', 'event_banner_img')
+EVENTS = os.path.join(ROOT, 'public/resource', 'events.json')
+BANNER_DIR = os.path.join(ROOT, 'public/resource', 'event_banner_img')
 CN_NEWS = 'https://www.bluearchive-cn.com/api/news/list'
 KR_SITEMAP = 'https://bluearchive.nexon.com/sitemap.xml'
 KR_THREADS = 'https://forum.nexon.com/api/v1/board/1018/threads'
@@ -103,11 +83,7 @@ def slug(value, limit=60):
 
 
 def student_names():
-    """{english name -> {kr/zh name}} from SchaleDB's per-language tables.
-
-    The archived SchaleDB GitHub repo stops well before the current roster, so this
-    reads the live site: 277 students there against 193 in the repo.
-    """
+    """Map English names to KR/ZH using the live roster; the GitHub archive is incomplete."""
     tables = {loc: fetch_json(SCHALEDB.format(loc=loc)) for loc in ('en', 'kr', 'cn')}
     names = {}
     for id_, english in tables['en'].items():
@@ -122,7 +98,6 @@ def student_names():
 
 
 def localized(name, lang, names):
-    """SchaleDB localized name for an English wiki name, or None."""
     return (names.get(name) or {}).get(lang)
 
 
@@ -413,10 +388,7 @@ def download(url, name):
 
 
 def attach(events, picked, lang, name_of):
-    """Write one language's banners onto events; the banner url is each payload's last item.
-
-    Returns how many landed.
-    """
+    """Each match payload ends with its banner URL; return the number attached."""
     added = 0
     for id_, payload in picked.items():
         file = download(payload[-1], name_of(payload)[:70])

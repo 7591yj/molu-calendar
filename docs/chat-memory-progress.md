@@ -1,3 +1,5 @@
+> Historical upstream documentation for the vanilla application. The current React integration and verification results are recorded in [upstream-integration.md](upstream-integration.md).
+
 # 메모리 구현 진행 결과
 
 ## 완료: P0 계약 / P1 IndexedDB 기반 / P2 모모톡 전환
@@ -20,15 +22,21 @@
 
 ```js
 const transcript = await ChatTranscript.open({ legacyRaw });
-await transcript.seed([{ roomId: 'Arona', speakerType: 'character', text: '…', sourceKind: 'app' }]);
-await transcript.refreshSummaries();          // [{ roomId, last, userMessageCount, activityAt }]
-const cache = await transcript.load('Yuuka'); // 최근 50개 + hasMore
-const older = await transcript.loadOlder('Yuuka');
-await transcript.append('Yuuka', { speakerType: 'user', text: '안녕', sourceKind: 'user-input' });
-const target = transcript.retryTarget('Yuuka'); // 답 없는 마지막 선생님 메시지
-await transcript.exportBundle();               // JSON 문자열
+await transcript.seed([
+  { roomId: "Arona", speakerType: "character", text: "…", sourceKind: "app" },
+]);
+await transcript.refreshSummaries(); // [{ roomId, last, userMessageCount, activityAt }]
+const cache = await transcript.load("Yuuka"); // 최근 50개 + hasMore
+const older = await transcript.loadOlder("Yuuka");
+await transcript.append("Yuuka", {
+  speakerType: "user",
+  text: "안녕",
+  sourceKind: "user-input",
+});
+const target = transcript.retryTarget("Yuuka"); // 답 없는 마지막 선생님 메시지
+await transcript.exportBundle(); // JSON 문자열
 await transcript.importBundle(raw, { replace: true });
-await transcript.deleteRoom('Yuuka');
+await transcript.deleteRoom("Yuuka");
 ```
 
 - 조회는 방별 인덱스로 최근 페이지만 읽고, 메모리 창은 방마다 최근 300개로 제한한다. 창을 넘긴 과거는 다시 `loadOlder`로 읽는다.
@@ -85,15 +93,15 @@ AI 생성 경로(사전 저장·재시도 버튼·늦은 응답 거부)는 실�
 
 `tools/momo-scale-check.mjs`(옵트인, 실제 Chromium + 실제 IndexedDB + 가짜 Worker)로 확인했다.
 
-| 항목 | 측정 |
-|---|---|
-| 레거시 이관(1만 건, 방 2개) | 628 ms |
-| 방 열기(최근 50개 적재) | 58 ms · DOM 행 50개 |
-| 이전 페이지 8회(각 50개) | 43~120 ms · 최종 300행(메모리 창 상한) |
-| 방 전환 | 89 ms |
-| 전체 DOM 노드 | 2,593개 |
-| 모델 입력(새 방 첫 질문) | 메시지 5개 · 52자 |
-| JS 힙 | 약 10 MB |
+| 항목                        | 측정                                   |
+| --------------------------- | -------------------------------------- |
+| 레거시 이관(1만 건, 방 2개) | 628 ms                                 |
+| 방 열기(최근 50개 적재)     | 58 ms · DOM 행 50개                    |
+| 이전 페이지 8회(각 50개)    | 43~120 ms · 최종 300행(메모리 창 상한) |
+| 방 전환                     | 89 ms                                  |
+| 전체 DOM 노드               | 2,593개                                |
+| 모델 입력(새 방 첫 질문)    | 메시지 5개 · 52자                      |
+| JS 힙                       | 약 10 MB                               |
 
 - 화면에는 최근 페이지만 올라가고(50행), 페이지를 더 읽어도 메모리 창 상한 300행을 넘지 않는다.
 - 1만 건이 있어도 모델 입력은 최근 왕복만 들어간다(52자, 예산 4,000자).
@@ -103,11 +111,11 @@ AI 생성 경로(사전 저장·재시도 버튼·늦은 응답 거부)는 실�
 
 `MOMO_CHECK_BROWSER=chromium|firefox|webkit node tools/momo-memory-check.mjs`로 같은 앱 점검을 세 엔진에서 실행했다.
 
-| 엔진 | 실행 | 결과 |
-|---|---|---|
-| Chromium (Playwright 번들 1243) | 3회 | 통과 |
-| WebKit (Playwright 번들 2359) | 4회 | 통과(동작 타임아웃을 60초로 올린 뒤 3회 연속 통과) |
-| Firefox (Playwright 1543) | 3회 | 통과 |
+| 엔진                            | 실행 | 결과                                               |
+| ------------------------------- | ---- | -------------------------------------------------- |
+| Chromium (Playwright 번들 1243) | 3회  | 통과                                               |
+| WebKit (Playwright 번들 2359)   | 4회  | 통과(동작 타임아웃을 60초로 올린 뒤 3회 연속 통과) |
+| Firefox (Playwright 1543)       | 3회  | 통과                                               |
 
 - 검사 항목은 Chromium과 동일하다: 이관·페이지·진행도·방 삭제·백업 왕복·기억 UI·두 탭 동시성·가짜 Worker 입력 조립.
 - Safari 애플리케이션 자체나 실제 사용자 프로필에서의 동작을 검증한 것은 아니다. WebKit 엔진 기준이다.
@@ -126,12 +134,12 @@ AI 생성 경로(사전 저장·재시도 버튼·늦은 응답 거부)는 실�
 
 `training/lora/build_context_probes.mjs`(앱 조립 코드 그대로)로 사실을 3왕복 전에 말한 뒤 회상 질문을 던지는 12개 프롬프트 × 3표본을 로컬 Qwen3로 돌렸다.
 
-| 변형 | 회상 | 값을 지어냄 | 중립 |
-|---|---:|---:|---:|
-| 2왕복 창, 사실 없음(창 밖) | 0/9 | 4/9 | 5/9 |
-| 4왕복 창, 사실 포함 | 6/9 | 0/9 | 3/9 |
-| 2왕복 + 기억 주입 | 8/9 | 0/9 | 1/9 |
-| 4왕복 + 기억 주입 | 8/9 | 0/9 | 1/9 |
+| 변형                       | 회상 | 값을 지어냄 | 중립 |
+| -------------------------- | ---: | ----------: | ---: |
+| 2왕복 창, 사실 없음(창 밖) |  0/9 |         4/9 |  5/9 |
+| 4왕복 창, 사실 포함        |  6/9 |         0/9 |  3/9 |
+| 2왕복 + 기억 주입          |  8/9 |         0/9 |  1/9 |
+| 4왕복 + 기억 주입          |  8/9 |         0/9 |  1/9 |
 
 - 창을 4로 늘리면 **창 안에 남은 사실을 실제로 회상**한다(6/9). 2왕복 창은 그 사실을 보지 못해 회상 0이고, 4/9에서 값을 지어냈다.
 - 기억 주입은 창 크기와 무관하게 8/9로 가장 강한 경로다. 그래서 기억 기능은 그대로 두고 창만 보강했다.

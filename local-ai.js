@@ -29,7 +29,7 @@ export const ENGINE_GUIDANCE = Object.freeze({
   litert: 'LiteRT-LM: Chromium WebGPU가 필요합니다. Safari 26+는 WebGPU를 지원하지만 어댑터 정보 공개가 제한적이라 실측이 필요합니다.',
 });
 export function runtimeCompatibility(adapter, engine = 'webllm') {
-  if (adapter.info?.isFallbackAdapter ?? adapter.isFallbackAdapter ?? adapter.info?.type === 'software' ?? adapter.type === 'software') return '소프트웨어 GPU 어댑터는 지원하지 않습니다. GPU 가속 브라우저에서 다시 확인해 주세요.';
+  if (adapter.info?.isFallbackAdapter ?? adapter.isFallbackAdapter ?? (adapter.info?.type === 'software' || adapter.type === 'software')) return '소프트웨어 GPU 어댑터는 지원하지 않습니다. GPU 가속 브라우저에서 다시 확인해 주세요.';
   // LiteRT requests the adapter's limits, not TVM's minima. Model execution still needs testing.
   if (engine === 'litert') return null;
   if (!adapter.features.has('shader-f16')) return '현재 모델에 필요한 GPU의 shader-f16 기능을 사용할 수 없습니다. CPU 실행은 이번 버전에 포함되지 않습니다.';
@@ -51,8 +51,7 @@ export const CACHE_NAMES = ['webllm/model', 'webllm/config', 'webllm/wasm', LITE
 const cacheModelFor = (name, url, modelLib) => CACHE_MODELS.find(candidate => name === LITERT_CACHE
   ? candidate.engine === 'litert' && url === modelURL(candidate)
   : candidate.engine === 'webllm' && (url.startsWith(modelURL(candidate)) || url === modelLib?.get(candidate.id)));
-// Page-thread Cache Storage scan. Worker 없이 기기 확인·정리에서 바로 쓴다.
-// scope: 'weights' | 'runtime' | undefined. unrelated origin 캐시는 건드리지 않는다.
+// Inspect caches without starting the Worker or loading a model.
 export async function inspectModelCaches({ caches: cacheStorage = globalThis.caches, modelLib = new Map() } = {}) {
   const counts = Object.fromEntries(CACHE_MODELS.map(model => [model.id, 0]));
   const bytes = Object.fromEntries(CACHE_MODELS.map(model => [model.id, 0]));
@@ -193,7 +192,7 @@ export async function inspectEnvironment(nav = navigator, secure = isSecureConte
 // A single worker owns a single model. Termination also cancels stalled GPU/download work.
 export class LocalAIClient {
   // LiteRT's pinned loader uses importScripts, so this bundle must be a classic Worker.
-  constructor(workerFactory = () => new Worker(new URL('./local-ai-worker.bundle.js', document.baseURI))) {
+  constructor(workerFactory = () => new Worker(new URL(`${(import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/')}local-ai-worker.bundle.js`, globalThis.location.href))) {
     this.workerFactory = workerFactory;
     this.worker = null;
     this.pending = null;

@@ -9,8 +9,8 @@ const legacy = JSON.stringify({
 });
 const open = options => ChatTranscript.open({ indexedDB: new IDBFactory(), ...options });
 const clock = createdAt => {
-  const date = new Date(createdAt);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const date = new Date(createdAt + 9 * 60 * 60 * 1000);
+  return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
 };
 
 test('legacy snapshots migrate once and seed greetings only when the room is empty', async () => {
@@ -59,14 +59,16 @@ test('paged reads keep order, expose older pages and stay bounded in memory', as
   assert.equal(oldest.hasMore, false);
   assert.equal(oldest.messages[0].text, 'm0');
   assert.equal(oldest.messages.length, ROOM_PAGE * 2 + 10);
-  // Loading more pages than the window keeps the newest ROOM_CACHE rows and remembers older ones exist.
+  // Paging beyond the cache limit must still reach the very first message.
   const wide = await open({ legacyRaw: JSON.stringify({ Wide: Array.from({ length: 1_000 }, (_, i) => ({ me: true, text: `${i}` })) }) });
   await wide.load('Wide');
   for (let i = 0; i < 20; i++) await wide.loadOlder('Wide');
   const bounded = wide.cached('Wide');
   assert.equal(bounded.messages.length, ROOM_CACHE);
-  assert.equal(bounded.hasMore, true);
-  assert.equal(bounded.messages.at(-1).text, '999');
+  assert.equal(bounded.hasMore, false);
+  assert.equal(bounded.messages[0].text, '0');
+  assert.equal(bounded.messages.at(-1).text, '299');
+  assert.equal((await wide.load('Wide')).messages.at(-1).text, '999');
   second.close(); wide.close();
 });
 
@@ -120,4 +122,19 @@ test('view mapping never invents dates for legacy rows and never uses labels for
     createdAt: 1_700_000_000_000, legacyTimeLabel: null, importedAt: 5 });
   assert.equal(mapped.time, clock(1_700_000_000_000));
   assert.equal(mapped.importedAt, 5);
+});
+
+test('a delayed reply cannot resurrect a deleted room or overwrite a replaced question', async () => {
+  const transcript = await open();
+  await transcript.load('Arona');
+  const question = await transcript.append('Arona', {speakerType:'user',text:'원래 질문',sourceKind:'user-input'});
+  await transcript.deleteRoom('Arona');
+  await transcript.load('Arona');
+  await assert.rejects(transcript.append('Arona', {speakerType:'character',text:'늦은 답',sourceKind:'model-output',expectedLastMessageId:question.id}), {name:'ChatStorageConflict'});
+  assert.equal((await transcript.load('Arona')).messages.length,0);
+  const replacement = await transcript.append('Arona', {speakerType:'user',text:'새 질문',sourceKind:'user-input'});
+  await assert.rejects(transcript.append('Arona', {speakerType:'character',text:'늦은 답',sourceKind:'model-output',expectedLastMessageId:question.id}), {name:'ChatStorageConflict'});
+  await transcript.append('Arona', {speakerType:'character',text:'새 답',sourceKind:'model-output',expectedLastMessageId:replacement.id});
+  assert.deepEqual(transcript.cached('Arona').messages.map(message=>message.text),['새 질문','새 답']);
+  transcript.close();
 });

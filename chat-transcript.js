@@ -1,19 +1,18 @@
-// MomoTalk transcript session over chat-store.js: paged reads, per-message appends and room summaries.
-// No DOM, localStorage or model calls here; app.js renders the returned view records.
+// IndexedDB remains authoritative; this session caches pages for src/hooks/useChat.ts.
 import { openChatStore, CHAT_DB_NAME } from './chat-store.js';
 import { searchMessages } from './chat-memory.js';
 
-export const ROOM_PAGE = 50;   // messages per read page
-export const ROOM_CACHE = 300; // messages kept in memory per room; the oldest loaded page is dropped first
+export const ROOM_PAGE = 50;
+export const ROOM_CACHE = 300;
 
 const pad = value => String(value).padStart(2, '0');
 const timeOf = createdAt => {
   if (createdAt === null) return '';
-  const date = new Date(createdAt);
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const date = new Date(createdAt + 9 * 60 * 60 * 1000);
+  return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
 
-// Store record → render record. Legacy rows keep their original HH:mm label and never claim a date.
+// Legacy rows keep their HH:mm label; migration time is not a message date.
 export function viewMessage(record) {
   return {
     id: record.id, me: record.speakerType === 'user', text: record.text,
@@ -40,7 +39,6 @@ export class ChatTranscript {
 
   close() { this.#store.close(); }
 
-  // Chat list: rooms that actually hold messages, newest activity first (ties by room id).
   async refreshSummaries() {
     const rooms = await this.#store.listRooms();
     this.#summaries = new Map();
@@ -61,7 +59,6 @@ export class ChatTranscript {
 
   summary(roomId) { return this.#summaries.get(roomId) ?? null; }
 
-  // Newest page of a room. Missing rooms read as an empty transcript.
   async load(roomId) {
     const [page, room] = await Promise.all([
       this.#store.readMessages(roomId, { limit: ROOM_PAGE }),
@@ -82,7 +79,8 @@ export class ChatTranscript {
     const older = before === undefined ? [] : await this.#store.readMessages(roomId, { before, limit: ROOM_PAGE });
     cache.records = [...older, ...cache.records];
     cache.hasMore = older.length === ROOM_PAGE;
-    this.#trim(cache);
+    // While paging backward, drop newer rows so the oldest cursor keeps advancing.
+    if (cache.records.length > ROOM_CACHE) cache.records.splice(ROOM_CACHE);
     cache.messages = cache.records.map(viewMessage);
     return cache;
   }
@@ -95,9 +93,9 @@ export class ChatTranscript {
     cache.hasMore = true;
   }
 
-  async append(roomId, { id, speakerType, text, sourceKind, status = 'complete', createdAt } = {}) {
+  async append(roomId, { id, speakerType, text, sourceKind, status = 'complete', createdAt, expectedLastMessageId } = {}) {
     const record = await this.#store.appendMessage({ roomId, id, speakerType, text, sourceKind, status,
-      createdAt: createdAt ?? Date.now() });
+      createdAt: createdAt ?? Date.now() }, { expectedLastMessageId });
     const cache = this.#rooms.get(roomId);
     if (cache) {
       cache.records.push(record);
@@ -168,7 +166,6 @@ export class ChatTranscript {
     return searchMessages(rows, { query, limit });
   }
 
-  // ── 명시적 기억 ──
   memories(roomId) { return this.#store.listMemories(roomId); }
   saveMemory(draft) { return this.#store.saveMemory(draft); }
   updateMemory(id, patch) { return this.#store.updateMemory(id, patch); }

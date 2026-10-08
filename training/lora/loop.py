@@ -93,7 +93,7 @@ def execute(args):
     root.mkdir(parents=True, exist_ok=True)
     scripts = ('run.py', 'report.py', 'loop.py', 'prepare.py', 'export_cards.mjs', 'test_stack.py')
     # Use the full-repo assembler when available; portable packs use their frozen data.
-    source = HERE.parents[1] / 'resource/persona/characters.json'
+    source = HERE.parents[1] / 'public/resource/persona/characters.json'
     regenerate = source.exists() and shutil.which('node') is not None
     fingerprint = {
         'config': read_json(args.config), 'characters': args.characters, 'attempts': args.attempts,

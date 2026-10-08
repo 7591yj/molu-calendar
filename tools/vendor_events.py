@@ -42,8 +42,8 @@ import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'resource', 'events.json')
-BANNER_DIR = os.path.join(ROOT, 'resource', 'event_banner_img')
+OUT = os.path.join(ROOT, 'public/resource', 'events.json')
+BANNER_DIR = os.path.join(ROOT, 'public/resource', 'event_banner_img')
 API = 'https://bluearchive.wiki/w/api.php'
 UA = 'molu-calendar-vendoring (one-off fan project data build)'
 PAST_DAYS, FUTURE_DAYS = 90, 270
@@ -71,7 +71,6 @@ def publish_events(path, bundle):
 
 
 def page(name):
-    """Rendered HTML of one wiki page."""
     url = f'{API}?action=parse&page={name}&prop=text&format=json&formatversion=2'
     result = subprocess.run(['curl', '-sL', '--max-time', '60', '-A', UA, url],
                             capture_output=True, text=True, check=False)
@@ -391,7 +390,7 @@ def make(kind, title, category, start, end, description, source_url, today, serv
     suffix = '-jp' if list(servers) == ['jp'] else '-gl' if list(servers) == ['gl'] else ''
     return {
         'id': f'wiki-{kind}-{kst_day(start):%Y%m%d}-{slug(title)}{suffix}',
-        'title': title[:160],   # schema maxLength
+        'title': title[:160],
         'category': category,
         'all_day': False,
         'start': start,
@@ -502,7 +501,6 @@ def campaign_rows(doc, today, source, servers, notices):
 
 
 def banner_title(names):
-    """Name a banner after its students; a pool-sized list keeps only the head count."""
     return f'{names[0]} 외 {len(names) - 1}명' if len(names) > 3 else ', '.join(names)
 
 
