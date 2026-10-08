@@ -1,10 +1,11 @@
 """One-off vendoring of Blue Archive student profile data.
 
-Sources (both real, third-party fan/datamine projects):
+Sources:
   - blue-utils.me  : KR-localized profile (school/year/club, MomoTalk status message, hobby, intro, CV)
-  - SchaleDB       : 120x120 student icons (images/student/icon/<characterId>.webp)
+  - SchaleDB       : student icons cached in /tmp/bu-cache/icons
+  - closure-talk  : fallback avatars matched by Korean name
 
-Run:  python3 tools/vendor_students.py     (writes resource/momotalk/students.json + avatars)
+Run:  python3 tools/vendor_students.py     (writes public/resource/momotalk/students.json + avatars)
 Not part of the app runtime; re-run only to refresh the roster.
 """
 
@@ -18,19 +19,17 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(ROOT, 'resource', 'momotalk')
+OUT_DIR = os.path.join(ROOT, 'public', 'resource', 'momotalk')
 CACHE = '/tmp/bu-cache'
 LIST_URL = 'https://blue-utils.me/student/list?lang=Kr&server=kr'
 DETAIL_URL = 'https://blue-utils.me/student-detail/{slug}?lang=Kr&server=kr'
 SCHALE_ICON = 'https://raw.githubusercontent.com/SchaleDB/SchaleDB/main/images/student/icon/{cid}.webp'
 ICON_DIR = os.path.join(CACHE, 'icons')
 UA = 'molu-calendar-vendoring (one-off fan project data build)'
-# ponytail: 1 request at a time with a pause keeps the source site happy; 144 pages ≈ 2 min.
 DELAY = 0.8
 
 
 def fetch(url, path, tries=4):
-    """Cached GET that only accepts real 200 responses and backs off on 429."""
     if valid(path):
         return path
     for attempt in range(tries):
@@ -75,7 +74,6 @@ def text(value):
 
 
 def profile(slug):
-    """KR detail page -> status message, school/club/year, profile table."""
     path = fetch(DETAIL_URL.format(slug=slug), os.path.join(CACHE, f'{slug}.html'))
     if not path:
         return {}
@@ -122,7 +120,7 @@ def closure_talk_icons():
 
 
 def avatar(entry, icon_dir, ct_index):
-    """SchaleDB icon -> closure-talk avatar -> none (UI falls back to an initial)."""
+    """Try cached SchaleDB icons, then closure-talk; the UI handles missing avatars."""
     name = entry['id']
     icon = os.path.join(icon_dir, f"{entry['characterId']}.webp")
     if os.path.exists(icon) and os.path.getsize(icon) > 200:

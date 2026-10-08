@@ -5,7 +5,7 @@ Sources:
   - bluearchive.wiki           : SE_MomoTalk_01.wav (in-game MomoTalk notification sound)
 
 Run:  python3 tools/vendor_momotalk.py
-Writes: resource/momotalk/ui/{BG_MainOffice.jpg, SE_MomoTalk_01.wav}
+Writes: public/resource/momotalk/ui/{BG_MainOffice.jpg, SE_MomoTalk_01.wav}
 """
 
 import os
@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UI_DIR = os.path.join(ROOT, 'resource', 'momotalk', 'ui')
+UI_DIR = os.path.join(ROOT, 'public', 'resource', 'momotalk', 'ui')
 
 ASSETS = {
     'BG_MainOffice.jpg': 'https://raw.githubusercontent.com/pizza-studio/momotalk/main/public/BG_MainOffice.jpg',
