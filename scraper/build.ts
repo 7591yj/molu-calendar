@@ -45,7 +45,6 @@ const unique = <T>(items: T[], key: (item: T) => string = String) => [
   ...new Map(items.map((item) => [key(item), item])).values(),
 ];
 
-/** Prefer dedicated notice banners over the weekly summary. */
 function priority(draft: Draft): number {
   if (draft.category === "pickup" && draft.post.board === 1018) return 0;
   if (draft.post.board === 1076) return 1;

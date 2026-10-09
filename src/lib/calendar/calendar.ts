@@ -182,7 +182,6 @@ export function endClock(event: Timed): string | null {
     : clockLabel(event.end);
 }
 
-/** Hide routine ends just before the daily reset or maintenance. */
 const ROUTINE_ENDS = new Set(["03:59", "10:59"]);
 
 export function endTag(
@@ -199,7 +198,6 @@ export function endTag(
   return ROUTINE_ENDS.has(clock) ? null : { text: `~${clock}`, soon: false };
 }
 
-/** Hide routine starts at the daily reset or scheduled maintenance end. */
 const ROUTINE_STARTS = new Set(["04:00", "11:00"]);
 
 export function startTag(

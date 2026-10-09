@@ -1,4 +1,3 @@
-// IndexedDB remains authoritative; this session caches pages for src/hooks/useChat.ts.
 import { openChatStore, CHAT_DB_NAME } from "./store.ts";
 import { searchMessages } from "./memory.ts";
 
@@ -220,7 +219,6 @@ export class ChatTranscript {
     return result;
   }
 
-  // 과거 원문 발췌 검색: 메모리 창 + 제한된 과거 페이지에서만 찾는다. 전체 기록을 훑지 않는다.
   async searchRoom(
     roomId: string,
     {

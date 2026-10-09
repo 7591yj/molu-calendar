@@ -36,7 +36,6 @@ function barPrefix(
   return startTag(event, now);
 }
 
-/** One-day bars use the full cell to keep their titles readable. */
 function barEdges(segment: Segment): CSSProperties {
   const { event } = segment;
   if (event.all_day || event.kind !== "interval" || segment.length < 2)

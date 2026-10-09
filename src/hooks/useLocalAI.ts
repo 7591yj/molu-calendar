@@ -45,7 +45,6 @@ export function useLocalAI() {
     [],
   );
 
-  /** Downloads on first use, then moves the cached model onto the GPU. */
   const prepare = useCallback(async () => {
     progress = 0;
     localAISession.notify();

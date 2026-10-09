@@ -25,7 +25,6 @@ interface Job {
 }
 export const AI_SETTINGS_KEY = "molu.local-ai.v1";
 
-// Hold the Worker until the active download or generation finishes.
 export class LocalAISession extends EventTarget {
   client: LocalAIClient;
   storage: Pick<Storage, "getItem" | "setItem"> | undefined;

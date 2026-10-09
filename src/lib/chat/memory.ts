@@ -1,4 +1,3 @@
-// transcript.ts supplies stored rows; these helpers select model references.
 import { dice, grams, words } from "./replies.ts";
 
 import type { Memory, Reference, MemoryDraft } from "./types.ts";
@@ -76,7 +75,6 @@ export function relevance(query: string, text: string) {
   return Math.max(wordScore * 0.7 + gramScore * 0.3, exact);
 }
 
-// 관리 화면에는 중지·만료된 기억도 남긴다. 모델 입력은 selectMemories에서 제외한다.
 export function filterMemories<T extends Pick<Memory, "text">>(
   memories: T[],
   query: string,
@@ -93,7 +91,6 @@ export function filterMemories<T extends Pick<Memory, "text">>(
   );
 }
 
-// 관련도가 높아도 다른 방의 비공개 기억은 모델에 보내지 않는다.
 export function selectMemories<
   T extends Pick<Memory, "id" | "roomId" | "text"> &
     Partial<Pick<Memory, "enabled" | "expiresAt" | "updatedAt">>,
@@ -183,7 +180,6 @@ export function selectExcerpts(
   return chosen;
 }
 
-// ChatTranscript.searchRoom에서 읽은 제한된 페이지를 검색한다.
 export function searchMessages<
   T extends Reference & {
     createdAt?: number | null;

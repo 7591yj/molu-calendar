@@ -1,6 +1,3 @@
-// 말투 고정 평가셋: 앱과 같은 카드+예시로 캐릭터별 고정 질문 프롬프트를 만든다.
-// 실제 추론은 training/lora/voice_probe.py가 담당한다(로컬 Qwen3, 앱 모델 아님).
-//   node training/lora/build_style_probes.ts training/lora/runs/voice-probe/prompts.jsonl
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -32,7 +29,6 @@ for (const persona of PERSONAS) {
       id: `${persona.id}-${question.id}`,
       characterId: persona.id,
       register: persona.register,
-      // 판정 기준도 캐릭터별 리듬에서 파생한다(예시와 같은 코드).
       sentences: replyLengthRange(persona.id),
       questionId: question.id,
       question: question.prompt,

@@ -9,9 +9,7 @@ import {
 import type { FeedEvent } from "../lib/calendar/feed.ts";
 
 export interface Calendar {
-  /** Events after the category or bookmark filter. */
   events: FeedEvent[];
-  /** `events` narrowed to search results, for the views that hide non-matches. */
   shown: FeedEvent[];
   matches: Set<string> | null;
   /** The search result to bring into view; `n` changes on every jump. */

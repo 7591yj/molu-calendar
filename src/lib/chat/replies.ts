@@ -34,7 +34,6 @@ export const ARONA: Student = {
   club: "",
   status: "선생님을 기다리고 있어요!",
 };
-// scheduleReply resolves these reply tokens against the live calendar.
 export const MOMO_QUERIES = ["@today", "@tomorrow"];
 
 export const MOMO_TOPICS: Record<

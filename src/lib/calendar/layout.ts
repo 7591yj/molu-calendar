@@ -3,7 +3,6 @@ import type { Category, FeedEvent } from "./feed.ts";
 
 export interface Segment {
   event: FeedEvent;
-  /** Zero-based weekday column for this week's segment. */
   column: number;
   length: number;
   lane: number;
@@ -93,14 +92,11 @@ export interface LaneBudget {
   height: number;
   /** Fixed height of every week: date header, "+N" strip, gaps and border. */
   base: number;
-  /** Height of one lane in the focused week and in the other weeks. */
   focusLane: number;
   otherLane: number;
-  /** Lanes every other week keeps when the space allows it. */
   floor: number;
 }
 
-/** Give the focused week this many lanes before other weeks get a second. */
 const LENS_MINIMUM = 5;
 
 export function allocateLanes(

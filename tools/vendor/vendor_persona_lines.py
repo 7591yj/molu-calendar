@@ -87,7 +87,6 @@ def rows(body):
 
 
 JUNK = re.compile(r'(펼치기|접기|해금 랭크|음성|스킬|목록|편집)')
-# 나무위키 본문의 각주 표시. 대사가 아니다.
 FOOTNOTE = re.compile(r'\[\d+\]|\[[A-Za-z]+\]')
 
 

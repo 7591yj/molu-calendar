@@ -8,7 +8,6 @@ function normalize(text: string): string {
   return text.normalize("NFC").toLowerCase().replace(/\s+/g, "");
 }
 
-/** 카즈사 → ㅋㅈㅅ; anything that is not a Hangul syllable stays as it is. */
 export function initials(text: string): string {
   return Array.from(text, (char) => {
     const code = char.charCodeAt(0) - 0xac00;

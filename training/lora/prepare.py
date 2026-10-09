@@ -80,7 +80,6 @@ def extract(key, rows, branch_cap=64):
             if cursor not in groups:
                 raise ValueError(f'{key}: missing group {cursor}')
             if cursor != root and cursor in roots:
-                # 다음 에피소드 경계: 이 경로는 여기서 끝난다.
                 emit(root, key, samples, rejected, seen, history, row_ids, segment, choices)
                 continue
             visited = visited | {cursor}
@@ -164,7 +163,6 @@ def split_episodes(samples, seed=42):
         groups[sample['episode']].append(sample)
     if len(groups) < 3:
         raise ValueError('Need at least three usable episodes for a pilot split')
-    # Pick ONE whole episode reproducibly, including its post-story messages.
     held = min(groups, key=lambda key: hashlib.sha256(f'{seed}:{key}'.encode()).hexdigest())
     evaluation = groups[held]
     targets = {s['messages'][-1]['content'] for s in evaluation}

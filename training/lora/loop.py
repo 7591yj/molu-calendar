@@ -53,7 +53,6 @@ def run_stage(key, command, root, state, deadline, stage_seconds=900):
 
 
 def candidate_config(base, index):
-    # Two declared experiments, not an unbounded auto-tuner or synthetic-data generator.
     return {**base, 'learning_rate': base['learning_rate'] / (2**index)}
 
 

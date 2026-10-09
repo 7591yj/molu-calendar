@@ -212,7 +212,6 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
       // A client cannot supply its own system prompt or examples.
       let chatMessages: PromptMessage[] = messages;
       if (data.characterId !== undefined) {
-        // 기억·발췌도 길이·개수·형식이 제한된 참고 자료일 뿐이며 system 역할은 Worker가 조립한다.
         const memories = normalizeMemories(data.memories);
         const excerpts = normalizeExcerpts(data.excerpts);
         const assembled = chatMessagesWithReferences(
@@ -238,7 +237,6 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
           ),
         });
       }
-      // Each request creates a fresh conversation.
       const started = performance.now();
       let ttftMs: number | null = null;
       let text = "";

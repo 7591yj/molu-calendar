@@ -1,4 +1,3 @@
-// Pinned, reviewed model artifacts only. No arbitrary URLs or user-supplied WASM.
 export type EngineKind = "litert";
 export interface ModelArtifact {
   id: string;

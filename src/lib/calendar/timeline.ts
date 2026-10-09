@@ -28,7 +28,6 @@ const GAP = 0.08;
 export interface TimelineItem {
   event: FeedEvent;
   lane: number;
-  /** Position and drawn length as fractions of the whole range. */
   left: number;
   width: number;
   point: boolean;

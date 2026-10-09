@@ -1,6 +1,3 @@
-// 최근 왕복 창 평가: 사실을 3턴 전에 말했을 때 창 크기(2 vs 4왕복)와 기억 저장이 회상에 어떤 영향을 주는지 본다.
-// 앱과 같은 조립 코드(momoPromptPlan + selectMemories)를 쓰고, 실제 추론은 memory_probe.py가 한다.
-//   node training/lora/build_context_probes.ts training/lora/runs/context-probe/prompts.jsonl
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -79,7 +76,6 @@ interface ProbeRow {
 const ROWS: ProbeRow[] = [];
 for (const testCase of CASES) {
   const fixed = promptCharsFor(testCase.characterId)!;
-  // 대화 이력: [사실] → [채움1] → [채움2] → 질문. 각 항목은 앱의 화면 기록 형식({me, text})이다.
   const history = [
     { me: true, text: testCase.fact },
     { me: false, text: "네, 기억해 둘게요." },
@@ -243,7 +239,6 @@ await writeFile(
   output,
   ROWS.map((row) => JSON.stringify(row)).join("\n") + "\n",
 );
-// 조립 검증: 창 크기와 기억 주입이 의도대로인지, 예산을 넘지 않는지.
 for (const row of ROWS) {
   const hasReference = row.messages.some(
     (message) =>

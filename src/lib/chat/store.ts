@@ -11,7 +11,6 @@ import type {
   RecordCounts,
 } from "./types.ts";
 
-// IndexedDB is the only untyped browser boundary. Callers specify the stored record contract.
 function readRequest<T>(request: IDBRequest): IDBRequest<T> {
   return request as IDBRequest<T>;
 }
@@ -102,7 +101,6 @@ function roomRecord(id: string): RoomRecord {
 export function parseChatBundle(raw: string): ChatBundle {
   if (typeof raw !== "string" || raw.length > BUNDLE_MAX_BYTES)
     throw new TypeError("백업 파일이 올바르지 않거나 너무 큽니다.");
-  // This candidate is untrusted until every validation below has passed.
   let parsed: ChatBundle;
   try {
     parsed = JSON.parse(raw);
@@ -297,7 +295,6 @@ export function openChatStore({
     const request = indexedDB.open(name, CHAT_DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      // Create only the stores used by the current application.
       if (!db.objectStoreNames.contains("rooms"))
         db.createObjectStore("rooms", { keyPath: "id" });
       if (!db.objectStoreNames.contains("messages")) {
@@ -417,7 +414,6 @@ export class ChatStore {
       "readonly",
       (tx, done) => {
         const rows: MessageRecord[] = [];
-        // Index seek avoids loading/scanning all rooms. Stop after one page, returned oldest-first.
         const request = tx
           .objectStore("messages")
           .index("roomSeq")
@@ -706,7 +702,6 @@ export class ChatStore {
     });
   }
 
-  // Room deletion is idempotent: the caller may already have deleted it in another tab.
   deleteRoom(roomId: string) {
     identifier(roomId, "대화방");
     return this.#transaction<{ messages: number; memories: number }>(
@@ -722,7 +717,6 @@ export class ChatStore {
           }
           const keys: IDBValidKey[] = [];
           const memoryKeys: IDBValidKey[] = [];
-          // Seek straight to the room's first sequence instead of scanning every room's messages.
           const cursorRequest = tx
             .objectStore("messages")
             .index("roomSeq")

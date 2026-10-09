@@ -227,7 +227,6 @@ export function Switch({
   );
 }
 
-/** Destructive actions ask once more in place instead of a native confirm. */
 export function ConfirmButton({
   children,
   confirm,

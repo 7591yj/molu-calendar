@@ -1,4 +1,3 @@
-// Import the dataset so the page and Worker bundle use the same personas.
 import rawDataset from "../../../public/resource/persona/characters.json" with { type: "json" };
 
 import { z } from "zod";
@@ -51,7 +50,6 @@ export function affiliationBlockFor(persona: Persona) {
   return `[소속]\n${persona.affiliation}\n${lore}`;
 }
 
-// training/lora/voice_probe.py의 판정 기준이다. 분량 지침은 실측 이득이 없어 프롬프트에서 뺐다.
 export function replyLengthRange(id: string) {
   const persona = personaById(id);
   if (!persona) return null;
@@ -94,7 +92,6 @@ export function chatMessagesFor(
   ];
 }
 
-// 클라이언트는 짧은 DTO만 보낸다. 임의의 system 메시지나 예시를 넣는 경로는 만들지 않는다.
 export const MEMORY_LIMITS = { items: 5, chars: 1_200, itemChars: 500 };
 export const EXCERPT_LIMITS = { items: 2, chars: 800, itemChars: 500 };
 export const REFERENCE_ITEM_CHARS =
@@ -125,7 +122,6 @@ function normalizeReferenceList(
     ) {
       throw new TypeError(`${label} 항목이 올바르지 않습니다.`);
     }
-    // 개행은 참고 목록의 구조를 흐리므로 한 줄로 눌러 담는다.
     const text = item.text.replace(/\s*\n+\s*/g, " ").trim();
     total += text.length;
     if (total > limits.chars)

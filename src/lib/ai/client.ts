@@ -65,7 +65,6 @@ interface Pending {
   timer: ReturnType<typeof setTimeout>;
   firstTimer?: ReturnType<typeof setTimeout>;
 }
-// Only pinned LiteRT model weights are owned by the app's cache.
 export async function inspectModelCaches({
   caches: cacheStorage = globalThis.caches,
 }: CacheOptions = {}) {

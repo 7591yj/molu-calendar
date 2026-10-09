@@ -1,6 +1,3 @@
-// 앱과 같은 조립 코드로 기억 프로브 프롬프트를 만든다.
-// 실제 모델 추론은 training/lora/memory_probe.py가 담당한다(앱 모델이 아니라 로컬 Qwen3 실험).
-//   node training/lora/build_memory_probes.ts training/lora/runs/memory-probe/prompts.jsonl
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -18,7 +15,6 @@ import {
 } from "../../src/lib/chat/prompt.ts";
 
 const NOW = 1_700_000_000_000;
-// 캐릭터별 사실 하나와, 그 사실을 확인하는 질문. includes는 사실이 답에 드러나야 하는 키워드다.
 const FACTS = [
   {
     id: "arona-coffee",
@@ -159,7 +155,6 @@ const rows = FACTS.flatMap((fact) =>
     build(fact, variant),
   ),
 );
-// 프롬프트가 실제로 의도한 모양인지 조립 단계에서 확인한다.
 for (const row of rows) {
   const systemMessages = row.messages.filter(
     (message) => message.role === "system",
