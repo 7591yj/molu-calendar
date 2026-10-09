@@ -207,7 +207,10 @@ export function App({ events: feedEvents }: { events: FeedEvent[] }) {
             />
             <div
               className={cx(
-                "flex min-h-0 min-w-0 flex-1 flex-col *:min-h-0 *:flex-1 max-md:h-[calc(100dvh-var(--chrome))] max-md:min-h-[460px] max-md:flex-none max-sm:min-h-[440px] max-xs:h-[calc(100dvh-200px)]",
+                "flex min-h-0 min-w-0 flex-1 flex-col *:min-h-0 *:flex-1 max-md:flex-none",
+                view === "list"
+                  ? "max-md:*:flex-none"
+                  : "max-md:h-[calc(100dvh-var(--chrome))] max-md:min-h-[460px] max-sm:min-h-[440px] max-xs:h-[calc(100dvh-200px)]",
                 view === "timeline"
                   ? "[--chrome:130px] max-sm:[--chrome:180px]"
                   : "[--chrome:180px] max-sm:[--chrome:230px]",

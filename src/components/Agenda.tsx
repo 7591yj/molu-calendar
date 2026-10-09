@@ -89,7 +89,10 @@ export function Agenda() {
 
   if (!groups.length) return <Empty />;
   return (
-    <div className="scroll-thin overflow-y-auto overscroll-contain" ref={list}>
+    <div
+      className="scroll-thin overflow-y-auto overscroll-contain max-md:overflow-visible max-md:overscroll-auto"
+      ref={list}
+    >
       {groups.map(([key, items]) => (
         <section key={key}>
           <DateStrip day={key} today={today} count={items.length} />
