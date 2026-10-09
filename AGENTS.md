@@ -1,7 +1,7 @@
 # Repository guidelines
 
 MOLU is an unofficial Blue Archive KR schedule calendar built with Astro, React,
-TypeScript and Tailwind. Use Node 22.18+ and pnpm 10.11.0.
+TypeScript and Tailwind. Use Node 22.18+ and pnpm 10.11.0 through `nix develop`.
 
 ## Architecture
 
