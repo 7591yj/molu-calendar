@@ -8,7 +8,6 @@ import type {
   RoomCache,
   Summary,
   StoreOptions,
-  MigrationReport,
   MessageDraft,
   MemoryDraft,
   MemoryPatch,
@@ -20,24 +19,21 @@ export const ROOM_PAGE = 50;
 export const ROOM_CACHE = 300;
 
 const pad = (value: number) => String(value).padStart(2, "0");
-const timeOf = (createdAt: number | null) => {
-  if (createdAt === null) return "";
+const timeOf = (createdAt: number) => {
   const date = new Date(createdAt + 9 * 60 * 60 * 1000);
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
 
-// Legacy rows keep their HH:mm label; migration time is not a message date.
 export function viewMessage(record: MessageRecord): ChatMessage {
   return {
     id: record.id,
     me: record.speakerType === "user",
     text: record.text,
-    time: record.legacyTimeLabel ?? timeOf(record.createdAt),
+    time: timeOf(record.createdAt),
     status: record.status,
     speakerType: record.speakerType,
     sourceKind: record.sourceKind,
     createdAt: record.createdAt,
-    importedAt: record.importedAt ?? null,
   };
 }
 
@@ -45,7 +41,6 @@ export class ChatTranscript {
   #store: ChatStore;
   #rooms = new Map<string, RoomCache>();
   #summaries = new Map<string, Summary>();
-  migrationReport: MigrationReport | null = null;
 
   constructor(store: ChatStore) {
     this.#store = store;
@@ -55,13 +50,9 @@ export class ChatTranscript {
     indexedDB,
     name = CHAT_DB_NAME,
     onBlocked,
-    legacyRaw,
-  }: StoreOptions & { legacyRaw?: string | null } = {}) {
+  }: StoreOptions = {}) {
     const store = await openChatStore({ indexedDB, name, onBlocked });
-    const transcript = new ChatTranscript(store);
-    if (typeof legacyRaw === "string" && legacyRaw)
-      transcript.migrationReport = await store.migrateLegacy(legacyRaw);
-    return transcript;
+    return new ChatTranscript(store);
   }
 
   close() {
@@ -80,7 +71,7 @@ export class ChatTranscript {
         last: view,
         userMessageCount: room.userMessageCount,
         revision: room.revision,
-        activityAt: view.createdAt ?? view.importedAt ?? 0,
+        activityAt: view.createdAt,
       });
     }
     return this.summaries();
@@ -183,15 +174,14 @@ export class ChatTranscript {
         cache?.userMessageCount ??
         summary.userMessageCount + (speakerType === "user" ? 1 : 0);
       summary.revision = cache?.revision ?? summary.revision + 1;
-      summary.activityAt =
-        view.createdAt ?? view.importedAt ?? summary.activityAt;
+      summary.activityAt = view.createdAt;
     } else {
       this.#summaries.set(roomId, {
         roomId,
         last: view,
         userMessageCount: speakerType === "user" ? 1 : 0,
         revision: 1,
-        activityAt: view.createdAt ?? view.importedAt ?? 0,
+        activityAt: view.createdAt,
       });
     }
     return view;

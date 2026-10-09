@@ -1,10 +1,10 @@
 import {
-  BENCHMARK,
+  MODEL_CATALOG_VERSION,
   DEFAULT_MODEL_ID,
-  LocalAIClient,
   modelById,
   errorWithCode,
-} from "./client.ts";
+} from "./models.ts";
+import { LocalAIClient } from "./client.ts";
 
 import type {
   AIClient,
@@ -25,7 +25,7 @@ interface Job {
 }
 export const AI_SETTINGS_KEY = "molu.local-ai.v1";
 
-// Hold the Worker for the whole workflow, including gaps between benchmark samples.
+// Hold the Worker until the active download or generation finishes.
 export class LocalAISession extends EventTarget {
   client: LocalAIClient;
   storage: Pick<Storage, "getItem" | "setItem"> | undefined;
@@ -54,7 +54,7 @@ export class LocalAISession extends EventTarget {
     this.settings = {
       ...settings,
       modelId:
-        settings.catalogVersion === BENCHMARK.version &&
+        settings.catalogVersion === MODEL_CATALOG_VERSION &&
         typeof settings.modelId === "string" &&
         modelById(settings.modelId)
           ? settings.modelId
@@ -87,7 +87,7 @@ export class LocalAISession extends EventTarget {
     this.settings = {
       ...this.settings,
       ...patch,
-      catalogVersion: BENCHMARK.version,
+      catalogVersion: MODEL_CATALOG_VERSION,
     };
     let saved = !!this.storage;
     try {

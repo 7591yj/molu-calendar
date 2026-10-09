@@ -3,8 +3,6 @@ import type {
   RoomRecord,
   MessageRecord,
   Memory,
-  MigrationReport,
-  MigrationRecord,
   StoreOptions,
   MessageDraft,
   MemoryDraft,
@@ -20,14 +18,7 @@ function readRequest<T>(request: IDBRequest): IDBRequest<T> {
 
 export const CHAT_DB_NAME = "molu-chat-memory";
 export const CHAT_DB_VERSION = 2;
-const MIGRATION_KEY = "legacy-momotalk-v1";
-const SOURCES = new Set([
-  "user-input",
-  "model-output",
-  "script",
-  "app",
-  "legacy-unknown",
-]);
+const SOURCES = new Set(["user-input", "model-output", "script", "app"]);
 const STATUSES = new Set([
   "complete",
   "pending",
@@ -76,9 +67,6 @@ const MESSAGE_FIELDS = new Set([
   "status",
   "createdAt",
   "replyToMessageId",
-  "importedAt",
-  "legacyTimeLabel",
-  "legacyData",
 ]);
 
 function conflict(message: string) {
@@ -109,94 +97,8 @@ function roomRecord(id: string): RoomRecord {
   };
 }
 
-// Normalize outside the transaction. Invalid records remain available in the exact raw snapshot.
-export function normalizeLegacyTranscript(
-  raw: string | null,
-  importedAt = Date.now(),
-) {
-  if (
-    raw !== null &&
-    (typeof raw !== "string" || raw.length > 16 * 1024 * 1024)
-  ) {
-    throw new TypeError("기존 대화 snapshot이 올바르지 않거나 너무 큽니다.");
-  }
-  if (!Number.isSafeInteger(importedAt) || importedAt < 0)
-    throw new TypeError("이관 시각이 올바르지 않습니다.");
-  const parsed: unknown = raw === null ? {} : JSON.parse(raw);
-  if (!parsed || typeof parsed !== "object")
-    throw new TypeError("기존 대화 형식이 올바르지 않습니다.");
-  const entries: [string, unknown][] = Array.isArray(parsed)
-    ? [["Arona", parsed]]
-    : Object.entries(parsed);
-  const rooms: RoomRecord[] = [],
-    messages: MessageRecord[] = [],
-    issues: MigrationReport["issues"] = [];
-  for (const [roomId, records] of entries) {
-    if (!roomId || roomId.length > 256 || !Array.isArray(records)) {
-      issues.push({
-        roomId,
-        index: null,
-        reason: "대화방 ID 또는 메시지 배열이 올바르지 않음",
-      });
-      continue;
-    }
-    const room = roomRecord(roomId);
-    records.forEach((record, index) => {
-      if (
-        !record ||
-        typeof record !== "object" ||
-        Array.isArray(record) ||
-        typeof record.text !== "string" ||
-        record.text.length > 100_000 ||
-        typeof record.me !== "boolean" ||
-        (record.pending !== undefined && typeof record.pending !== "boolean") ||
-        (record.time !== undefined &&
-          (typeof record.time !== "string" || record.time.length > 100))
-      ) {
-        issues.push({
-          roomId,
-          index,
-          reason: "본문·화자·시간·pending 형식이 올바르지 않음",
-        });
-        return;
-      }
-      const message: MessageRecord = {
-        id: `legacy:${encodeURIComponent(roomId)}:${index}`,
-        profileId: "local",
-        roomId,
-        seq: room.nextSeq++,
-        speakerId: record.me ? "sensei" : roomId,
-        speakerType: record.me ? "user" : "character",
-        text: record.text,
-        status: record.pending ? "pending" : "complete",
-        sourceKind: "legacy-unknown",
-        createdAt: null,
-        importedAt,
-        legacyTimeLabel: record.time ?? null,
-        legacyData: record,
-        replyToMessageId: null,
-      };
-      messages.push(message);
-      if (record.me) room.userMessageCount++;
-      room.lastMessageId = message.id;
-    });
-    rooms.push(room);
-  }
-  return {
-    rooms,
-    messages,
-    report: {
-      imported: messages.length,
-      rooms: rooms.length,
-      rejected: issues.length,
-      issues,
-      importedAt,
-    },
-  };
-}
-
 // Backup files are validated strictly before a single atomic write. Unknown fields are version errors,
-// not silently dropped extensions: a newer format must bump BUNDLE_VERSION instead of reusing v1.
+// not silently dropped extensions: a newer format must bump BUNDLE_VERSION.
 export function parseChatBundle(raw: string): ChatBundle {
   if (typeof raw !== "string" || raw.length > BUNDLE_MAX_BYTES)
     throw new TypeError("백업 파일이 올바르지 않거나 너무 큽니다.");
@@ -296,25 +198,12 @@ export function parseChatBundle(raw: string): ChatBundle {
       !STATUSES.has(message.status) ||
       !Number.isSafeInteger(message.seq) ||
       message.seq < 1 ||
-      (message.createdAt !== null &&
-        (!Number.isSafeInteger(message.createdAt) || message.createdAt < 0)) ||
+      !Number.isSafeInteger(message.createdAt) ||
+      message.createdAt < 0 ||
       (message.replyToMessageId !== null &&
-        typeof message.replyToMessageId !== "string") ||
-      (message.importedAt !== undefined &&
-        (!Number.isSafeInteger(message.importedAt) ||
-          message.importedAt < 0)) ||
-      (message.legacyTimeLabel !== undefined &&
-        message.legacyTimeLabel !== null &&
-        (typeof message.legacyTimeLabel !== "string" ||
-          message.legacyTimeLabel.length > 100))
+        typeof message.replyToMessageId !== "string")
     ) {
       throw new TypeError("백업 파일의 메시지 정보가 올바르지 않습니다.");
-    }
-    if (
-      message.legacyData !== undefined &&
-      JSON.stringify(message.legacyData ?? null)?.length > 20_000
-    ) {
-      throw new TypeError("백업 파일의 원본 메시지 정보가 너무 큽니다.");
     }
     const roomSeq = seqs.get(message.roomId) ?? new Set();
     if (roomSeq.has(message.seq))
@@ -408,9 +297,7 @@ export function openChatStore({
     const request = indexedDB.open(name, CHAT_DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      // 버전이 올라갈 때 기존 store는 그대로 두고 새 store만 만든다.
-      if (!db.objectStoreNames.contains("meta"))
-        db.createObjectStore("meta", { keyPath: "key" });
+      // Create only the stores used by the current application.
       if (!db.objectStoreNames.contains("rooms"))
         db.createObjectStore("rooms", { keyPath: "id" });
       if (!db.objectStoreNames.contains("messages")) {
@@ -486,66 +373,6 @@ export class ChatStore {
     });
   }
 
-  migrateLegacy(raw: string | null, { importedAt = Date.now() } = {}) {
-    const normalized = normalizeLegacyTranscript(raw, importedAt);
-    return this.#transaction<MigrationReport>(
-      ["meta", "rooms", "messages"],
-      "readwrite",
-      (tx, done, fail) => {
-        const meta = tx.objectStore("meta");
-        const marker = readRequest<MigrationRecord | undefined>(
-          meta.get(MIGRATION_KEY),
-        );
-        marker.onsuccess = () => {
-          if (marker.result) {
-            if (marker.result.raw !== raw) {
-              fail(
-                conflict(
-                  "기존 대화가 이관 snapshot과 다릅니다. 자동 병합하지 않습니다.",
-                ),
-              );
-              return;
-            }
-            done(marker.result.report);
-            return;
-          }
-          const roomsCount = tx.objectStore("rooms").count();
-          roomsCount.onsuccess = () => {
-            const count = tx.objectStore("messages").count();
-            count.onsuccess = () => {
-              if (count.result || roomsCount.result) {
-                fail(
-                  conflict(
-                    "기록이 있는 DB에 기존 대화를 자동 이관할 수 없습니다.",
-                  ),
-                );
-                return;
-              }
-              for (const room of normalized.rooms)
-                tx.objectStore("rooms").add(room);
-              for (const message of normalized.messages)
-                tx.objectStore("messages").add(message);
-              meta.add({ key: MIGRATION_KEY, raw, report: normalized.report });
-              done(normalized.report);
-            };
-          };
-        };
-      },
-    );
-  }
-
-  getMigration() {
-    return this.#transaction<MigrationRecord | null>(
-      ["meta"],
-      "readonly",
-      (tx, done) => {
-        const request = readRequest<MigrationRecord | undefined>(
-          tx.objectStore("meta").get(MIGRATION_KEY),
-        );
-        request.onsuccess = () => done(request.result ?? null);
-      },
-    );
-  }
   getRoom(roomId: string) {
     identifier(roomId, "대화방");
     return this.#transaction<RoomRecord | null>(

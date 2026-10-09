@@ -187,7 +187,6 @@ export function selectExcerpts(
 export function searchMessages<
   T extends Reference & {
     createdAt?: number | null;
-    importedAt?: number | null;
   },
 >(
   rows: T[],
@@ -212,7 +211,7 @@ export function searchMessages<
   const hits = [];
   for (const row of rows) {
     if (!row || typeof row.text !== "string") continue;
-    const at = row.createdAt ?? row.importedAt ?? null;
+    const at = row.createdAt ?? null;
     if (from !== null && (at === null || at < from)) continue;
     if (to !== null && (at === null || at > to)) continue;
     const score = query ? relevance(query, row.text) : 1;

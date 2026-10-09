@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ARONA,
-  cleanRooms,
-  momoReply,
-  momoTopicsFor,
-  scheduleReply,
-} from "./replies.ts";
+import { ARONA, momoReply, momoTopicsFor, scheduleReply } from "./replies.ts";
 import type { FeedEvent } from "../calendar/feed.ts";
 
 const event = (values: Partial<FeedEvent>): FeedEvent => ({
@@ -24,7 +18,7 @@ const event = (values: Partial<FeedEvent>): FeedEvent => ({
   ...values,
 });
 
-describe("restored Momotalk", () => {
+describe("MomoTalk", () => {
   it("routes schedule questions and preserves student replies", () => {
     expect(momoReply("오늘일정좀", ARONA)).toBe("@today");
     expect(momoReply("내일 일정 알려줘", ARONA)).toBe("@tomorrow");
@@ -35,22 +29,6 @@ describe("restored Momotalk", () => {
       momoReply("안녕", { id: "Hoshino", short: "호시노" }),
     );
     expect(momoTopicsFor("missing")).toBe(momoTopicsFor("default"));
-  });
-  it("migrates legacy transcripts and removes malformed messages", () => {
-    expect(
-      cleanRooms([
-        { text: "hello", me: true, time: "12:00" },
-        null,
-        { text: 1 },
-      ]),
-    ).toEqual({ Arona: [{ text: "hello", me: true, time: "12:00" }] });
-    expect(
-      cleanRooms({
-        Yuuka: Array.from({ length: 70 }, () => ({ text: "hi" })),
-        bad: 1,
-      }).Yuuka,
-    ).toHaveLength(60);
-    expect(cleanRooms(null)).toEqual({});
   });
   it("uses KST days, exclusive ends, and unfiltered live feed data", () => {
     const now = Date.parse("2026-10-07T15:30:00Z");

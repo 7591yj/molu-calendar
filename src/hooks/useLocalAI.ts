@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  MODELS,
-  inspectEnvironment,
-  inspectModelCaches,
-} from "../lib/ai/client.ts";
+import { inspectEnvironment, inspectModelCaches } from "../lib/ai/client.ts";
+import { MODELS } from "../lib/ai/models.ts";
 import { localAISession } from "../lib/ai/session.ts";
 
 export const MODEL = MODELS[0]!;

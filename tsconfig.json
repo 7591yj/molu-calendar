@@ -1,6 +1,6 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "src/**/*", "scraper/**/*", "compat/**/*"],
+  "include": [".astro/types.d.ts", "src/**/*", "scraper/**/*"],
   "exclude": [
     "dist",
     "reference",

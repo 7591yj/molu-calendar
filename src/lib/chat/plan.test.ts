@@ -11,7 +11,6 @@ const message = (id: string, text: string, me = true): ChatMessage => ({
   sourceKind: me ? "user-input" : "model-output",
   speakerType: me ? "user" : "character",
   createdAt: 1,
-  importedAt: null,
 });
 const question = "금요일 독서 모임은 언제야?";
 const store = {

@@ -3,7 +3,7 @@ import type { ConversationMessage, Reference } from "../chat/types.ts";
 
 export interface WorkerPayloads {
   cache: object;
-  delete: { modelId?: string; scope?: "weights" | "runtime" };
+  delete: { modelId: string };
   load: { modelId: string };
   generate: {
     messages: ConversationMessage[];
@@ -16,7 +16,6 @@ export interface WorkerPayloads {
 export interface CacheResult {
   counts: Record<string, number>;
   bytes: Record<string, number>;
-  runtimeBytes: number;
 }
 export interface GenerationResult {
   text: string;
@@ -46,8 +45,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({
     id: requestId,
     action: z.literal("delete"),
-    modelId: z.string().optional(),
-    scope: z.enum(["weights", "runtime"]).optional(),
+    modelId: z.string(),
   }),
   z.object({ id: requestId, action: z.literal("load"), modelId: z.string() }),
   z.object({
@@ -92,7 +90,6 @@ export function parseWorkerReply(value: unknown) {
 const cacheResultSchema = z.object({
   counts: z.record(z.string(), z.number()),
   bytes: z.record(z.string(), z.number()),
-  runtimeBytes: z.number(),
 });
 const resultSchemas = {
   cache: cacheResultSchema,

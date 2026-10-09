@@ -180,7 +180,6 @@ for (const testCase of CASES) {
     roomId: testCase.characterId,
     text: message.text,
     createdAt: NOW + index,
-    importedAt: null,
   }));
   for (const variant of ["excerpt-on", "excerpt-off"]) {
     const questionText = testCase.question;

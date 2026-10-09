@@ -23,12 +23,6 @@ export interface Student {
   voice?: string;
   intro?: string;
 }
-export interface Message {
-  me: boolean;
-  text: string;
-  time: string;
-}
-export type Rooms = Record<string, Message[]>;
 type Reply = string | Record<string, string>;
 export const ARONA: Student = {
   id: "Arona",
@@ -455,32 +449,6 @@ export function momoReply(
   );
 }
 
-// Accept the original single Arona transcript and the later per-student rooms.
-export function cleanRooms(value: unknown): Rooms {
-  if (Array.isArray(value)) value = { Arona: value };
-  if (!value || typeof value !== "object") return {};
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([, messages]) => Array.isArray(messages))
-      .map(([id, messages]) => [
-        id,
-        (messages as unknown[])
-          .filter(
-            (m): m is Message =>
-              !!m &&
-              typeof m === "object" &&
-              "text" in m &&
-              typeof m.text === "string",
-          )
-          .slice(-60)
-          .map((m) => ({
-            me: m.me === true,
-            text: m.text,
-            time: typeof m.time === "string" ? m.time : "",
-          })),
-      ]),
-  );
-}
 export function scheduleReply(
   reply: string,
   events: FeedEvent[],

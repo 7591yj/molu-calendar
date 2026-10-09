@@ -1,7 +1,6 @@
 /** Persisted schema v2. Keep these names stable for existing databases and backups. */
 export type SpeakerType = "user" | "character" | "app";
-export type SourceKind =
-  "user-input" | "model-output" | "script" | "app" | "legacy-unknown";
+export type SourceKind = "user-input" | "model-output" | "script" | "app";
 export type MessageStatus =
   "complete" | "pending" | "failed" | "cancelled" | "interrupted";
 export interface RoomRecord {
@@ -24,11 +23,8 @@ export interface MessageRecord {
   text: string;
   sourceKind: SourceKind;
   status: MessageStatus;
-  createdAt: number | null;
+  createdAt: number;
   replyToMessageId: string | null;
-  importedAt?: number;
-  legacyTimeLabel?: string | null;
-  legacyData?: unknown;
 }
 export interface Memory {
   id: string;
@@ -50,8 +46,7 @@ export interface ChatMessage {
   status: MessageStatus;
   speakerType: SpeakerType;
   sourceKind: SourceKind;
-  createdAt: number | null;
-  importedAt: number | null;
+  createdAt: number;
 }
 export interface RoomCache {
   roomId: string;
@@ -67,18 +62,6 @@ export interface Summary {
   userMessageCount: number;
   revision: number;
   activityAt: number;
-}
-export interface MigrationReport {
-  imported: number;
-  rooms: number;
-  rejected: number;
-  issues: { roomId: string; index: number | null; reason: string }[];
-  importedAt: number;
-}
-export interface MigrationRecord {
-  key: string;
-  raw: string | null;
-  report: MigrationReport;
 }
 export interface ChatBundle {
   format: "molu-chat-memory";

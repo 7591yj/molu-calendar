@@ -1,7 +1,7 @@
 import type { ChatMessage, ChatTranscript } from "./transcript.ts";
 import { selectMemories, selectExcerpts } from "./memory.ts";
 import { momoPromptPlan } from "./prompt.ts";
-import { promptCharsFor } from "../ai/client.ts";
+import { promptCharsFor } from "../ai/persona.ts";
 
 /** Restrict stored records to the Worker DTO before constructing its prompt. */
 export async function planChatPrompt(

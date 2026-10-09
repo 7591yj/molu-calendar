@@ -7,6 +7,3 @@ training/*
 !training/lora/
 training/lora/*
 !training/lora/*.ts
-tests/regression/
-
-tools/upstream-browser/

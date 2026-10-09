@@ -1,26 +1,28 @@
-import { MLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
 import {
   Engine as LiteRTEngine,
   Backend,
   getOrLoadGlobalLiteRtLm,
 } from "@litert-lm/core";
 import {
-  MODELS,
-  LEGACY_GEMMA2,
-  BENCHMARK,
+  MODEL_CONTEXT,
   LITERT_ASSET_PATH,
   LITERT_CACHE,
   modelURL,
   modelById,
+  errorWithCode,
+} from "../lib/ai/models.ts";
+import {
   chatMessagesWithReferences,
   normalizeMemories,
   normalizeExcerpts,
   referenceChars,
-  errorWithCode,
+} from "../lib/ai/persona.ts";
+import {
   inspectEnvironment,
+  inspectModelCaches,
+  deleteModelCaches,
 } from "../lib/ai/client.ts";
 
-import type { AppConfig } from "@mlc-ai/web-llm";
 import type { Model } from "../lib/ai/models.ts";
 import type { PromptMessage } from "../lib/chat/types.ts";
 import {
@@ -38,110 +40,15 @@ declare const self: DedicatedWorkerGlobalScope & {
   Module?: { locateFile(name: string): string };
 };
 
-const cacheModels = [...MODELS, LEGACY_GEMMA2];
-const appConfig: AppConfig = {
-  cacheBackend: "cache",
-  model_list: MODELS.filter((model) => model.engine === "webllm").map(
-    (model) => {
-      const preset = prebuiltAppConfig.model_list.find(
-        (entry) => entry.model_id === model.id,
-      );
-      if (!preset) throw new Error(`지원 모델 구성이 없습니다: ${model.id}`);
-      return {
-        ...preset,
-        model: modelURL(model),
-        overrides: {
-          ...preset.overrides,
-          context_window_size: BENCHMARK.context,
-        },
-      };
-    },
-  ),
-};
-let engine: MLCEngine | LiteRTEngine | null = null;
+let engine: LiteRTEngine | null = null;
 let loaded: string | null = null;
 let liteRuntime:
   Awaited<ReturnType<typeof getOrLoadGlobalLiteRtLm>> | undefined;
 
-function isLiteEngine(value: MLCEngine | LiteRTEngine): value is LiteRTEngine {
-  return Boolean(value) && modelById(loaded)?.engine === "litert";
-}
-
 async function unload() {
-  if (engine) {
-    if (isLiteEngine(engine)) await engine.delete();
-    else await engine.unload();
-  }
+  await engine?.delete();
   engine = null;
   loaded = null;
-}
-
-// Never clear unrelated origin caches or another model's artifacts.
-// scope: 'weights' (model files only) | 'runtime' (shared WASM/config) | undefined (all).
-async function modelCaches(
-  deleteId?: string | null,
-  scope?: "weights" | "runtime",
-) {
-  const counts = Object.fromEntries(cacheModels.map((model) => [model.id, 0]));
-  const bytes = Object.fromEntries(cacheModels.map((model) => [model.id, 0]));
-  let runtimeBytes = 0;
-  if (!globalThis.caches)
-    throw new Error("이 브라우저에서 모델 캐시를 사용할 수 없습니다.");
-  for (const name of await caches.keys()) {
-    if (
-      !["webllm/model", "webllm/config", "webllm/wasm", LITERT_CACHE].includes(
-        name,
-      )
-    )
-      continue;
-    const cache = await caches.open(name);
-    for (const request of await cache.keys()) {
-      const model = cacheModels.find((candidate) =>
-        name === LITERT_CACHE
-          ? candidate.engine === "litert" && request.url === modelURL(candidate)
-          : candidate.engine === "webllm" &&
-            (request.url.startsWith(modelURL(candidate)) ||
-              request.url ===
-                prebuiltAppConfig.model_list.find(
-                  (entry) => entry.model_id === candidate.id,
-                )?.model_lib),
-      );
-      const isRuntime =
-        name === "webllm/wasm" || (name === "webllm/config" && !model);
-      if (!model && !isRuntime) continue;
-      const isWeights =
-        Boolean(model) && (name === LITERT_CACHE || name === "webllm/model");
-      const inScope =
-        !scope ||
-        (scope === "weights"
-          ? isWeights
-          : scope === "runtime"
-            ? isRuntime
-            : true);
-      if (
-        deleteId &&
-        inScope &&
-        (model?.id === deleteId || (scope === "runtime" && isRuntime))
-      ) {
-        await cache.delete(request);
-        continue;
-      }
-      let size = 0;
-      try {
-        const response = await cache.match(request);
-        const length = response?.headers?.get("content-length");
-        size = Number(length);
-        if (!Number.isFinite(size)) size = 0;
-      } catch {
-        size = 0;
-      }
-      if (model && isWeights) {
-        counts[model.id] = (counts[model.id] ?? 0) + 1;
-        bytes[model.id] = (bytes[model.id] ?? 0) + size;
-      } else if (isRuntime) runtimeBytes += size;
-    }
-  }
-  return { counts, bytes, runtimeBytes };
 }
 
 async function liteModelStream(
@@ -222,18 +129,10 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
     self.postMessage({ id, event, ...value });
   try {
     let result: WorkerResults[keyof WorkerResults];
-    if (data.action === "cache") result = await modelCaches();
+    if (data.action === "cache") result = await inspectModelCaches();
     else if (data.action === "delete") {
-      if (data.scope === "runtime") result = await modelCaches(null, "runtime");
-      else {
-        if (!cacheModels.some((model) => model.id === modelId))
-          throw new Error("지원하지 않는 모델입니다.");
-        if (loaded === modelId) await unload();
-        result = await modelCaches(
-          modelId,
-          data.scope === "weights" ? "weights" : undefined,
-        );
-      }
+      if (loaded === modelId) await unload();
+      result = await deleteModelCaches({ modelId: data.modelId });
     } else if (data.action === "load") {
       const model = modelById(modelId);
       if (!model) throw new Error("지원하지 않는 모델입니다.");
@@ -249,7 +148,7 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
         );
       await unload();
       const started = performance.now();
-      if (model.engine === "litert") {
+      {
         emit("progress", {
           progress: 0.02,
           text: "LiteRT-LM 실행 파일·WebGPU 초기화 중 (모델 다운로드 전)",
@@ -282,16 +181,8 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
           model: stream,
           backend: Backend.GPU_ARTISAN,
           benchmarkEnabled: true,
-          mainExecutorSettings: { maxNumTokens: BENCHMARK.context },
+          mainExecutorSettings: { maxNumTokens: MODEL_CONTEXT },
         });
-      } else {
-        engine = new MLCEngine({
-          appConfig,
-          logLevel: "WARN",
-          initProgressCallback: (report) =>
-            emit("progress", { progress: report.progress, text: report.text }),
-        });
-        await engine.reload(data.modelId);
       }
       loaded = data.modelId;
       result = { loadMs: performance.now() - started };
@@ -318,7 +209,7 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
       )
         throw new Error("테스트 입력이 허용 범위를 벗어났습니다.");
       // Only a built-in persona can become a system message, and its few-shot examples come from the dataset.
-      // Benchmarks stay neutral, and a client cannot supply its own system prompt or examples.
+      // A client cannot supply its own system prompt or examples.
       let chatMessages: PromptMessage[] = messages;
       if (data.characterId !== undefined) {
         // 기억·발췌도 길이·개수·형식이 제한된 참고 자료일 뿐이며 system 역할은 Worker가 조립한다.
@@ -347,8 +238,7 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
           ),
         });
       }
-      // Reset KV history before every sample. Warm prefix-cache hits must not inflate scores.
-      if (!isLiteEngine(engine)) await engine.resetChat(false);
+      // Each request creates a fresh conversation.
       const started = performance.now();
       let ttftMs: number | null = null;
       let text = "";
@@ -361,7 +251,7 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
         if (text.trim()) emit("token", { text });
       };
       emit("started");
-      if (isLiteEngine(engine)) {
+      {
         const conversation = await engine.createConversation({
           sessionConfig: {
             maxOutputTokens: maxTokens,
@@ -396,28 +286,6 @@ self.onmessage = async ({ data: raw }: MessageEvent<unknown>) => {
           tokensPerSecond = info.lastDecodeTokensPerSecond;
         } finally {
           await conversation.delete();
-        }
-      } else {
-        let rawText = "";
-        const stream = await engine.chat.completions.create({
-          messages: chatMessages,
-          max_tokens: maxTokens,
-          stream: true,
-          stream_options: { include_usage: true },
-          seed: 42,
-          temperature: 0.6,
-          top_p: 0.9,
-        });
-        for await (const chunk of stream) {
-          if (chunk.usage) {
-            tokens = chunk.usage.completion_tokens;
-            tokensPerSecond = chunk.usage.extra?.decode_tokens_per_s;
-          }
-          const delta = chunk.choices[0]?.delta?.content ?? "";
-          if (delta) {
-            rawText += delta;
-            output(rawText);
-          }
         }
       }
       if (ttftMs === null || !text.trim())

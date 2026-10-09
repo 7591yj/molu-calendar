@@ -136,17 +136,6 @@ function AIBadge({
   );
 }
 
-function legacySound() {
-  try {
-    return (
-      JSON.parse(localStorage.getItem("molu.prefs.v1") ?? "{}").momoSound !==
-      false
-    );
-  } catch {
-    return true;
-  }
-}
-
 export function MomoTalk({
   events,
   open,
@@ -184,7 +173,7 @@ export function MomoTalk({
   );
   const [sound, setSound] = usePersistentState(
     "molu.momo.sound.v1",
-    legacySound(),
+    true,
     isBoolean,
   );
   const [settings, setSettings] = useState(false);
@@ -798,11 +787,6 @@ export function MomoTalk({
                             >
                               <Icon name="sparkle" />
                               AI
-                            </span>
-                          )}
-                          {message.sourceKind === "legacy-unknown" && (
-                            <span title="이전 버전에서 옮겨 온 기록이라 날짜를 알 수 없어요">
-                              이전 기록
                             </span>
                           )}
                           {roomAI &&

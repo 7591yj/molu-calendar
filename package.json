@@ -15,7 +15,7 @@
     "astro": "astro",
     "scrape": "node scraper/cli.ts",
     "scrape:backfill": "node scraper/cli.ts --pages 3 --page-size 50",
-    "test": "vitest run && pnpm test:upstream",
+    "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -24,7 +24,6 @@
     "check": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm typecheck && pnpm test",
     "deploy": "pnpm build && wrangler deploy",
     "build:ai": "node tools/build-ai.ts",
-    "test:upstream": "node --test tests/regression/*.test.js",
     "check:static": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm typecheck"
   },
   "dependencies": {
@@ -34,8 +33,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
-    "@litert-lm/core": "0.17.1",
-    "@mlc-ai/web-llm": "0.2.85"
+    "@litert-lm/core": "0.17.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
@@ -62,7 +60,6 @@
     "vitest": "^5.0.3",
     "wrangler": "^4.0.0",
     "zod": "^4.6.5",
-    "esbuild": "0.25.12",
-    "fake-indexeddb": "6.2.4"
+    "esbuild": "0.25.12"
   }
 }

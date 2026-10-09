@@ -261,7 +261,7 @@ uv run --locked python voice_probe.py --adapter <path> --filter Yuuka   # 어댑
 
 ## 6. 앱 연결 범위
 
-현재 앱의 기본 LiteRT-LM/Gemma 및 WebLLM에는 이 PEFT 어댑터를 직접 로드하는 기능을 추가하지 않았다. **Qwen용 LoRA는 Gemma에 적용할 수 없으며**, Qwen WebLLM 양자화 모델과도 파일 형식이 같지 않다.
+현재 앱의 LiteRT-LM/Gemma에는 이 PEFT 어댑터를 직접 로드하는 기능을 추가하지 않았다. **Qwen용 LoRA는 Gemma에 적용할 수 없으며**, Qwen WebLLM 양자화 모델과도 파일 형식이 같지 않다.
 
 설치된 런타임의 API도 확인했다(2026-10, `@litert-lm/core` 0.17.1). `dist/engine_settings.d.ts`·`dist/wasm_binding_types.d.ts`에서 LoRA 관련 표면은 **`GpuArtisanConfig.supported_lora_ranks: number[]`(런타임이 지원하는 rank 목록)뿐**이고, 어댑터 파일을 지정해 붙이는 파라미터(`EngineSettings`, `LlmExecutorSettings`)는 공개 타입에 없다. 레거시 MediaPipe LLM Inference처럼 모델 자산에 LoRA를 함께 묶는 방식도 이 패키지에는 없다. 따라서 현재 고정한 브라우저 런타임에서 PEFT 어댑터를 붙일 경로는 확인되지 않았고, 가정하지 않는다.
 

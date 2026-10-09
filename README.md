@@ -30,9 +30,8 @@ GitHub Actions refreshes schedules every Monday at 19:00 KST and deploys to GitH
 
 ## Browser-local chat and AI
 
-MomoTalk stores transcripts and explicit memories in IndexedDB. Existing
-`molu.momotalk.v1` localStorage history migrates once; the original snapshot is
-preserved. Use the chat controls to page older messages, save or edit memories,
+MomoTalk stores transcripts and explicit memories in IndexedDB. Use the chat
+controls to page older messages, save or edit memories,
 export/import backups, delete history, or request persistent browser storage.
 Back up important conversations: browser storage can be cleared or evicted.
 
@@ -49,9 +48,7 @@ relative to that project path. Model weights are not included in the Pages
 artifact. `public/_headers` applies only on hosts that recognize that format;
 GitHub Pages does not consume it. Keep runtime/model versions pinned together.
 
-The official KR schema-v2 feed remains authoritative for the calendar. Upstream's
-multi-region schema-v1 data and banners are retained under `public/resource/`
-for vendoring and research, rather than merged into the live KR feed.
+The official KR schema-v2 feed is the calendar’s only schedule source.
 
 ## Source layout
 
@@ -62,31 +59,23 @@ for vendoring and research, rather than merged into the live KR feed.
   client and session. TypeScript implementations own the shared contracts.
 - `src/workers/local-ai.worker.ts`: classic Worker source, bundled by
   `tools/build-ai.ts`. Generated JavaScript and WASM stay ignored.
-- `compat/calendar-v1/`: retained upstream multi-region utilities and schema.
 - `tools/vendor/`: Python asset/corpus refresh tools.
-- `tests/regression/`: preserved upstream JavaScript regressions. Application
-  unit tests remain beside their TypeScript modules.
+- Application and scraper unit tests remain beside their TypeScript modules.
 - `training/lora/`: isolated Python/uv experiment with typed Node prompt exporters.
 
-`pnpm typecheck` covers Astro/React, compatibility utilities, the Worker and Node
+`pnpm typecheck` covers Astro/React, the Worker and Node
 build/probe tooling. `pnpm check:static` does not run test suites. Use the actual
 React app in a browser to check calendar and chat behavior, including native
-IndexedDB and real model execution. Archived vanilla UI checks do not validate
-React, and mock engines do not establish GPU compatibility.
+IndexedDB and real model execution. Mock engines do not establish GPU compatibility.
 
-## Upstream tools and checks
-
-`pnpm test` runs the typed calendar/scraper tests and upstream's storage, memory,
-transcript, persona and AI regressions. `python3 -B tools/vendor/test_vendor_publication.py`
-checks atomic vendor publication. `compat/calendar-v1/` contains the typed schema-v1 validation utility,
-schema and example. It does not render the React calendar.
+## Asset and corpus tools
 
 `tools/vendor/vendor_momotalk.py` refreshes the persona dialogue corpus;
-`tools/vendor/vendor_momotalk_ui.py` retains the UI asset downloader. Vendor scripts write
+`tools/vendor/vendor_momotalk_ui.py` downloads the UI assets. Vendor scripts write
 into `public/resource/`. `training/lora/` contains a separate experimental
 Python/uv training pipeline and its own documentation. Training outputs are not
-loaded by the browser app. `tools/upstream-browser/` contains archived browser
-checks for the replaced vanilla UI, not checks for this React interface.
+loaded by the browser app. `pnpm test` runs the existing TypeScript application
+and scraper tests.
 
 ## Credits
 
