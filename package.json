@@ -20,11 +20,12 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
-    "typecheck": "astro check",
+    "typecheck": "astro check && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.tools.json",
     "check": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm typecheck && pnpm test",
     "deploy": "pnpm build && wrangler deploy",
-    "build:ai": "node tools/build-ai.mjs",
-    "test:upstream": "node --test *.test.js"
+    "build:ai": "node tools/build-ai.ts",
+    "test:upstream": "node --test tests/regression/*.test.js",
+    "check:static": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm typecheck"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-kr": "^5.3.0",

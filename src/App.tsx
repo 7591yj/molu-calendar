@@ -13,7 +13,7 @@ import {
   useBookmarks,
   useNow,
   usePersistentState,
-} from "./hooks.ts";
+} from "./hooks/calendar.ts";
 import {
   CATEGORIES,
   addDays,
@@ -24,10 +24,10 @@ import {
   span,
   startMoment,
   validDate,
-} from "./lib/calendar.ts";
+} from "./lib/calendar/calendar.ts";
 import { cx } from "./lib/cx.ts";
-import type { Category, FeedEvent } from "./lib/feed.ts";
-import { eventMatcher } from "./lib/search.ts";
+import type { Category, FeedEvent } from "./lib/calendar/feed.ts";
+import { eventMatcher } from "./lib/calendar/search.ts";
 
 export type View = "timeline" | "month" | "list";
 export type Filter = "all" | "bookmarks" | Category;

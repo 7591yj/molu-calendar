@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { usePersistentState } from "../hooks.ts";
-import type { FeedEvent } from "../lib/feed.ts";
+import { usePersistentState } from "../hooks/calendar.ts";
+import type { FeedEvent } from "../lib/calendar/feed.ts";
 import {
   ARONA,
   momoReply,
   momoTopicsFor,
   scheduleReply,
-} from "../lib/momotalk.ts";
-import type { Student } from "../lib/momotalk.ts";
+} from "../lib/chat/replies.ts";
+import type { Student } from "../lib/chat/replies.ts";
 import { sitePath } from "../lib/urls.ts";
 import { cx } from "../lib/cx.ts";
 import {
@@ -26,10 +26,10 @@ import { useChat } from "../hooks/useChat.ts";
 import { useLocalAI } from "../hooks/useLocalAI.ts";
 import { MomoSettings } from "./MomoSettings.tsx";
 import { MemoryPanel } from "./MemoryPanel.tsx";
-import type { Memory } from "../../chat-transcript.js";
-import { localAISession } from "../../local-ai-session.js";
-import { momoCalendarQuery, momoSupportsAI } from "../../momotalk.js";
-import { planChatPrompt } from "../lib/chat-prompt.ts";
+import type { Memory } from "../lib/chat/transcript.ts";
+import { localAISession } from "../lib/ai/session.ts";
+import { momoCalendarQuery, momoSupportsAI } from "../lib/chat/prompt.ts";
+import { planChatPrompt } from "../lib/chat/plan.ts";
 
 const isIds = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((id) => typeof id === "string");

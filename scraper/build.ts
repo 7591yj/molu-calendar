@@ -4,8 +4,13 @@ import {
   compareEvents,
   endMoment,
   openEndedExpired,
-} from "../src/lib/calendar.ts";
-import type { Feed, FeedEvent, Period, Source } from "../src/lib/feed.ts";
+} from "../src/lib/calendar/calendar.ts";
+import type {
+  Feed,
+  FeedEvent,
+  Period,
+  Source,
+} from "../src/lib/calendar/feed.ts";
 import { BOARDS } from "./parse.ts";
 import type { Draft, Post } from "./parse.ts";
 import { validateFeed } from "./schema.ts";

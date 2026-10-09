@@ -11,7 +11,8 @@ Requires Node.js 22.18+ and pnpm. Nix users can run `nix develop`.
 ```sh
 pnpm install
 pnpm dev              # http://localhost:4321
-pnpm check            # Formatting, linting, types, and tests
+pnpm check:static     # Formatting, linting, app/Worker/tooling types
+pnpm check            # Also run existing automated regressions
 pnpm build            # Build to dist/
 pnpm preview          # Preview at http://127.0.0.1:8787
 ```
@@ -52,15 +53,36 @@ The official KR schema-v2 feed remains authoritative for the calendar. Upstream'
 multi-region schema-v1 data and banners are retained under `public/resource/`
 for vendoring and research, rather than merged into the live KR feed.
 
+## Source layout
+
+- `src/lib/calendar/`: official KR schema-v2 feed, KST dates, search and ICS export.
+- `src/lib/chat/`: IndexedDB records and transactions, transcript paging, explicit
+  memories, prompt planning and scripted replies.
+- `src/lib/ai/`: pinned model catalogue, validated personas, Worker protocol,
+  client and session. TypeScript implementations own the shared contracts.
+- `src/workers/local-ai.worker.ts`: classic Worker source, bundled by
+  `tools/build-ai.ts`. Generated JavaScript and WASM stay ignored.
+- `compat/calendar-v1/`: retained upstream multi-region utilities and schema.
+- `tools/vendor/`: Python asset/corpus refresh tools.
+- `tests/regression/`: preserved upstream JavaScript regressions. Application
+  unit tests remain beside their TypeScript modules.
+- `training/lora/`: isolated Python/uv experiment with typed Node prompt exporters.
+
+`pnpm typecheck` covers Astro/React, compatibility utilities, the Worker and Node
+build/probe tooling. `pnpm check:static` does not run test suites. Use the actual
+React app in a browser to check calendar and chat behavior, including native
+IndexedDB and real model execution. Archived vanilla UI checks do not validate
+React, and mock engines do not establish GPU compatibility.
+
 ## Upstream tools and checks
 
 `pnpm test` runs the typed calendar/scraper tests and upstream's storage, memory,
-transcript, persona and AI regressions. `python3 -B tools/test_vendor_publication.py`
-checks atomic vendor publication. The root legacy calendar module remains a
-schema-v1 validation utility; it does not render the React calendar.
+transcript, persona and AI regressions. `python3 -B tools/vendor/test_vendor_publication.py`
+checks atomic vendor publication. `compat/calendar-v1/` contains the typed schema-v1 validation utility,
+schema and example. It does not render the React calendar.
 
-`tools/vendor_momotalk.py` refreshes the persona dialogue corpus;
-`tools/vendor_momotalk_ui.py` retains the UI asset downloader. Vendor scripts write
+`tools/vendor/vendor_momotalk.py` refreshes the persona dialogue corpus;
+`tools/vendor/vendor_momotalk_ui.py` retains the UI asset downloader. Vendor scripts write
 into `public/resource/`. `training/lora/` contains a separate experimental
 Python/uv training pipeline and its own documentation. Training outputs are not
 loaded by the browser app. `tools/upstream-browser/` contains archived browser

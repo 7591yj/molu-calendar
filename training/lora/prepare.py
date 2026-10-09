@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[1] / 'tools'))
+sys.path.insert(0, str(HERE.parents[1] / 'tools' / 'vendor'))
 from select_examples import BROKEN, clean
 
 PILOTS = {'Yuuka': (13010, '유우카'), 'CH0069': (10122, '미카'), 'Aris': (10015, '아리스')}
@@ -214,7 +214,7 @@ def main():
     if args.source_table:
         dump(source_path, snapshot(args.source_table, args.profile_table))
     source = json.loads(source_path.read_text(encoding='utf-8'))
-    cards = json.loads(subprocess.check_output(['node', str(HERE / 'export_cards.mjs'), *PILOTS], text=True))
+    cards = json.loads(subprocess.check_output(['node', str(HERE / 'export_cards.ts'), *PILOTS], text=True))
     manifest = prepare(source, args.output, cards)
     for key, info in manifest['characters'].items():
         print(f'{key}: train={info["train"]}, eval={info["eval"]}, rejected={len(info["rejected"])}')

@@ -9,12 +9,12 @@
 ### 추가·변경한 파일
 
 - `docs/chat-memory-contract.md`: 화자/출처/이관/날짜/삭제/입력 한도 계약.
-- `chat-store.js`: 네이티브 IndexedDB schema v1. 읽기/추가/이관에 더해 `deleteRoom`, `deleteAll`, `exportBundle`, `importBundle`(백업 검증 `parseChatBundle` 포함)을 제공한다.
-- `chat-transcript.js`: DOM 없는 세션 계층. 페이지 창(50개씩, 방마다 300개 상한), 방 요약·정렬, 답변 대상(`retryTarget`), 백업·삭제를 담당한다.
+- `src/lib/chat/store.ts`: 네이티브 IndexedDB schema v1. 읽기/추가/이관에 더해 `deleteRoom`, `deleteAll`, `exportBundle`, `importBundle`(백업 검증 `parseChatBundle` 포함)을 제공한다.
+- `src/lib/chat/transcript.ts`: DOM 없는 세션 계층. 페이지 창(50개씩, 방마다 300개 상한), 방 요약·정렬, 답변 대상(`retryTarget`), 백업·삭제를 담당한다.
 - `app.js`: 비동기 저장소 초기화, 페이지 조회, 진행도 분리, 저장 실패 배너(재시도·내보내기), 방별 삭제(프로필), 전체 초기화 연동, 탭 간 알림·생성 감지를 연결했다.
 - `index.html`, `styles.css`: 저장 상태 배너, `이전 대화 불러오기`, 프로필의 기록 삭제 버튼.
 - `local-ai-settings.js`: 대화 기록 삭제를 IndexedDB까지 연결하고 JSON 내보내기·가져오기를 추가했다.
-- `server.js`: `chat-store.js`, `chat-transcript.js`를 서빙 목록에 추가했다.
+- `server.js`: `src/lib/chat/store.ts`, `src/lib/chat/transcript.ts`를 서빙 목록에 추가했다.
 - `tools/momo-memory-check.mjs`: 실제 앱 UI로 이관·페이지·진행도·삭제·백업 왕복을 확인하는 선택형 브라우저 점검.
 - `chat-store.test.js`, `chat-transcript.test.js`: 저장소와 세션 계층 회귀 검사(신규 16개).
 
@@ -69,8 +69,8 @@ AI 생성 경로(사전 저장·재시도 버튼·늦은 응답 거부)는 실�
 
 ## 완료: P3 명시적 기억·범위 제한 검색
 
-- `chat-store.js` schema v2: `memories` store(`roomCreated`, `sourceMessage` 인덱스). 저장·수정·삭제·조회 API와 백업 포함(v2).
-- `chat-memory.js`: 순수 함수. `relevance`(어절 일치(접두 허용)·2-gram dice·일치 비율 보정, 기능어 제외), `selectMemories`(방 비공개 필터 → 사용 중 → 미만료 → 관련성(상대 하한 80%) → 개수·문자 예산), `searchMessages`(기간 필터·관련성·개수 제한), `memoryDraftFromMessage`.
+- `src/lib/chat/store.ts` schema v2: `memories` store(`roomCreated`, `sourceMessage` 인덱스). 저장·수정·삭제·조회 API와 백업 포함(v2).
+- `src/lib/chat/memory.ts`: 순수 함수. `relevance`(어절 일치(접두 허용)·2-gram dice·일치 비율 보정, 기능어 제외), `selectMemories`(방 비공개 필터 → 사용 중 → 미만료 → 관련성(상대 하한 80%) → 개수·문자 예산), `searchMessages`(기간 필터·관련성·개수 제한), `memoryDraftFromMessage`.
 - 검색 품질 측정(자연스러운 질문 16개 + 방해 기억 5개, 모델 없이 순수 함수만): 기억 선택 최상위 적중 **15/16(94%)**, 원문 발췌 hit@2 **8/8(100%)**. 개선 전에는 13/16·5/8이었다(접두 일치·일치 비율 보강·기능어 제외·상대 하한). 남은 1건은 어휘가 전혀 겹치지 않는 바꿔 말하기("장부 관리" ↔ "지출 기록 수첩")로 키워드 방식의 한계다. 회귀 검사는 `chat-memory.test.js`에 있다.
 - UI: 프로필 오버레이의 '이 대화의 기억'(추가·수정·사용 중지·만료·삭제·키워드 검색), 메시지 길게 누르기/오른쪽 클릭 → '기억하기'.
 - 무효화: 방 삭제·전체 삭제가 그 방의 기억을 한 트랜잭션에서 함께 지운다. 백업 가져오기도 `sourceMessageId` 참조가 깨진 기억을 거부한다.
@@ -78,9 +78,9 @@ AI 생성 경로(사전 저장·재시도 버튼·늦은 응답 거부)는 실�
 
 ## 완료: P4 모델 입력 연결·문맥 예산
 
-- `persona.js`: `normalizeMemories`/`normalizeExcerpts`(개수·길이·필드 검증), `referenceMessage`(`[참고 자료]` system 블록), `chatMessagesWithReferences`(예시 뒤·대화 앞에 참고 자료 배치), `promptCharsFor`(카드·예시 길이).
-- `local-ai-worker.js`: 기억 ≤5·≤1,200자, 발췌 ≤2·≤800자 DTO만 받아 Worker가 system 블록을 조립한다. 임의 system 주입 경로는 없다. `trace` 이벤트로 개수·문자 수를 알린다(본문 로그 없음).
-- `momotalk.js`: `momoPromptPlan` — 카드+예시(고정) + 참고 자료(남은 예산의 절반) + 완결된 최근 왕복 2턴 + 현재 질문을 **문자 예산 4,000자**에 맞춘다. 초과 시 항목 단위로 제거하고 현재 질문은 자르지 않는다.
+- `src/lib/ai/persona.ts`: `normalizeMemories`/`normalizeExcerpts`(개수·길이·필드 검증), `referenceMessage`(`[참고 자료]` system 블록), `chatMessagesWithReferences`(예시 뒤·대화 앞에 참고 자료 배치), `promptCharsFor`(카드·예시 길이).
+- `src/workers/local-ai.worker.ts`: 기억 ≤5·≤1,200자, 발췌 ≤2·≤800자 DTO만 받아 Worker가 system 블록을 조립한다. 임의 system 주입 경로는 없다. `trace` 이벤트로 개수·문자 수를 알린다(본문 로그 없음).
+- `src/lib/chat/prompt.ts`: `momoPromptPlan` — 카드+예시(고정) + 참고 자료(남은 예산의 절반) + 완결된 최근 왕복 2턴 + 현재 질문을 **문자 예산 4,000자**에 맞춘다. 초과 시 항목 단위로 제거하고 현재 질문은 자르지 않는다.
 - 근거: 앱 형태 프롬프트 실측(Qwen3 토크나이저) 1.18~1.31자/토큰 → 가장 나쁜 값과 템플릿 오버헤드를 가정해 4,000자 ≈ 3,550토큰으로 4,096 문맥 − 출력 256 안에 맞춘다. 토큰 수를 직접 세지 않는다.
 - 개발자 도구 '모모톡 프롬프트': 마지막 조립의 예산·선택된 참고 자료·Worker 확인 값. 전체 대화 본문은 남기지 않는다.
 - 검증: `chat-memory-contract.test.js`(4건: 완료 왕복만·길이 거부·항목 단위 축소·예산 상한), `local-ai.test.js`의 Worker 검사(참고 자료 system 블록 조립, 잘못된 DTO 거부, characterId 없으면 미적용), 브라우저 점검(가짜 Worker로 페이지→Worker 페이로드 확인: 기억 문구·user/assistant 역할만·두 번째 질문에 완료 왕복 포함·관련 기억만 선택).

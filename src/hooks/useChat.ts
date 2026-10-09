@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChatTranscript } from "../../chat-transcript.js";
-import type { ChatMessage, RoomCache, Summary } from "../../chat-transcript.js";
+import { ChatTranscript } from "../lib/chat/transcript.ts";
+import type {
+  ChatMessage,
+  RoomCache,
+  Summary,
+} from "../lib/chat/transcript.ts";
 
 export function useChat() {
   const transcript = useRef<ChatTranscript | null>(null);
@@ -116,7 +120,7 @@ export function useChat() {
     message: {
       me: boolean;
       text: string;
-      sourceKind?: string;
+      sourceKind?: import("../lib/chat/types.ts").SourceKind;
       expectedLastMessageId?: string;
     },
   ) => {

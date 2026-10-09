@@ -29,7 +29,7 @@ are downloaded separately; the Pages artifact contains no model weights.
 The old DOM settings renderer and obsolete page/server files are replaced by
 React. Old UI browser checks are archived under `tools/upstream-browser/`.
 The schema-v1 calendar validation utility and applicable pure tests are retained.
-The UI asset downloader is preserved as `tools/vendor_momotalk_ui.py`, alongside
+The UI asset downloader is preserved as `tools/vendor/vendor_momotalk_ui.py`, alongside
 upstream's persona dialogue vendor. The LoRA experiment stays separate.
 
 Integration fixes include GPU fallback detection, advancing backward pagination

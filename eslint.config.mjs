@@ -14,7 +14,7 @@ export default [
       "public/",
       "reference/",
       "tools/upstream-browser/",
-      "training/",
+      "training/lora/runs/",
       "**/.*/",
     ],
   },
@@ -51,7 +51,7 @@ export default [
     },
   },
   {
-    files: ["*.test.js"],
+    files: ["tests/regression/*.test.js"],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
       "no-misleading-character-class": "off",

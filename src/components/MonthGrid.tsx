@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent } from "react";
-import { useCalendar, useMediaQuery } from "../hooks.ts";
+import { useCalendar, useMediaQuery } from "../hooks/calendar.ts";
 import {
   STATUSES,
   WEEKDAYS,
@@ -16,10 +16,10 @@ import {
   span,
   startTag,
   weekday,
-} from "../lib/calendar.ts";
+} from "../lib/calendar/calendar.ts";
 import { cx } from "../lib/cx.ts";
-import { allocateLanes, layoutWeek, weeks } from "../lib/layout.ts";
-import type { Segment } from "../lib/layout.ts";
+import { allocateLanes, layoutWeek, weeks } from "../lib/calendar/layout.ts";
+import type { Segment } from "../lib/calendar/layout.ts";
 import { Icon } from "./Icon.tsx";
 import { categoryStyle } from "./ui.tsx";
 
